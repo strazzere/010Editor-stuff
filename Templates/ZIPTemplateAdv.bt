@@ -3,7 +3,7 @@
 //
 // File:     ZIPTemplateAdv.bt
 // Author:   SweetScape Software
-// Revision: 2.3
+// Revision: 2.4
 // Purpose:  Defines a template for
 //    parsing ZIP files. Handles more
 //    complex ZIP data such as ZIP64
@@ -25,20 +25,21 @@
 //   - Added write function for EXTRAFIELD structure.
 //
 // 2.4 (Tim Strazzere, diff@lookout.com)
-//   - Added ability to parse JAR files promperly
+//   - Added ability to parse JAR/APK files promperly
+//   - Fixed odd padding issues surrounding misformed extra fields
 //
 //-----------------------------------
 
 // Define structures used in ZIP files
 
 typedef enum <uint> {
-	S_ZIPFILERECORD 		= 0x04034b50,
-	S_ZIPDATADESCR 			= 0x08074b50,
-	S_ZIPDIRENTRY 			= 0x02014b50, 
-	S_ZIPDIGITALSIG 		= 0x05054b50,
+	S_ZIPFILERECORD 		 = 0x04034b50,
+	S_ZIPDATADESCR 			 = 0x08074b50,
+	S_ZIPDIRENTRY 			 = 0x02014b50, 
+	S_ZIPDIGITALSIG 		 = 0x05054b50,
 	S_ZIP64ENDLOCATORRECORD = 0x06064b50,
-	S_ZIP64ENDLOCATOR 		= 0x07064b50,
-	S_ZIPENDLOCATOR 		= 0x06054b50
+	S_ZIP64ENDLOCATOR 		 = 0x07064b50,
+	S_ZIPENDLOCATOR 		 = 0x06054b50
 } SignatureTYPE <format=hex>;
 
 typedef enum <byte> {
@@ -195,6 +196,7 @@ typedef enum <ushort>{
 	EH_SMSQDOS = 				0xfd4a, 	//SMS/QDOS
     EH_WzAES =                 0x9901,     //
     EH_CAFE =                  0xCAFE,     //JarMarker
+    EH_NO_HEADER =             0x0000,     //No header found
 } HEADERFLAG;
 
 typedef enum <ushort>{ 
@@ -226,7 +228,10 @@ typedef enum <ushort>{
 
 typedef struct {
 	HEADERFLAG  efHeaderID;
-	ushort  efDataSize;
+    if(efHeaderID != EH_NO_HEADER)
+    {
+	    ushort efDataSize;
+    }
 
 	Printf("HeaderID: %d\n", efHeaderID);
 	switch (efHeaderID)
@@ -278,6 +283,9 @@ typedef struct {
     case EH_CAFE:
         if(efDataSize != 0)
             Warning("There should be no data for the JarMarker!");
+        break;
+    case EH_NO_HEADER:
+        Warning("Hit an odd NO_HEADER section in extra fields!");
         break;
 	default:
 		if(efDataSize > 0 )
@@ -406,7 +414,20 @@ typedef struct {
 	while (len > 0)
 	{
 		EXTRAFIELD frExtraField;
-        len -= frExtraField.efDataSize + 4;
+        if(frExtraField.efHeaderID != EH_NO_HEADER)
+            len -= frExtraField.efDataSize + 4;
+        else
+            len -= 2;
+
+        // There is an odd bug in some APKs/JARs which
+        // the extra header is not always properly formatted
+        // This will attempt to register those sections as
+        // padding to avoid improperly parsing the files
+        if(len < 4)
+        {
+            char padding[len];
+            break;
+        }
 	}
 	// Compressed data
 	SetBackColor( cNone );
@@ -622,7 +643,6 @@ void SeekToDataDescription()
 // Define the file
 local uint tag;
 local uint isJar = 0;
-local uint firstPass = 1;
 LittleEndian(); 
 while( !FEof() )
 {
@@ -635,30 +655,29 @@ while( !FEof() )
 	// in the help file).
 	if( tag == S_ZIPFILERECORD )
 	{
-        Printf("ZipeFileRecord hit!\n");
+        Printf("ZipFileRecord hit at %d!\n", FTell());
 		SetBackColor( cLtGray );
 		ZIPFILERECORD record;
-        // Only the first entry of a JAR will contain the EH_CAFE tag
-        // so only look if this exists here once
-        if(firstPass)
-        {
-            firstPass = 0;
-            // JAR's should all have this extra field on the first entry
-            if(record.frExtraField.efHeaderID == EH_CAFE)
-                isJar = 1;
-        }
-        if(isJar)
-        {
-            // Skip data if need be, since a JAR doesn't properly set the
-            // compressed size / uncompressed size in the ZIPFILERECORD, 
-            // it's actually set in the DATADESCR section
-            SeekToDataDescription();
-        }
+
 		if (record.frExtraFieldLength > 0 && record.frExtraField.efHeaderID == EH_Zip64)
 		{
 			Printf("%Lu", record.frExtraField.efCompressedSize);
 			FSkip(record.frExtraField.efCompressedSize);
 		}
+
+        // JAR's should all have this extra field on the first entry
+        if(record.frExtraFieldLength > 0 && isJar != 1)
+            if(record.frExtraField.efHeaderID == EH_CAFE)
+                isJar = 1;
+        if(isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
+        {
+            Printf("skipping to dataDescription\n");
+            // Skip data if need be, since a JAR doesn't properly set the
+            // compressed size / uncompressed size in the ZIPFILERECORD, 
+            // it's actually set in the DATADESCR section
+            SeekToDataDescription();
+            Printf("Pointing at %d\n", FTell());
+        }
 	}
 	else if( tag == S_ZIPDATADESCR )
 	{
@@ -692,7 +711,7 @@ while( !FEof() )
 	}
 	else
 	{
-		Warning( "Unknown ZIP tag encountered. Template stopped." );
+		Warning( "Unknown ZIP tag encountered at offset %d. Template stopped.", FTell() );
 		return -1;
 	}
 }
