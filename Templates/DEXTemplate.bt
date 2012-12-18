@@ -4,13 +4,20 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.1
+// Revision: 1.2
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
 
+// Version 1.2 (2012-12-17)
+//
+// FIXED:
+//  - Attempting to convert some structs over to on-demand structs,
+//    this should reduce some memory overhead according to 010Editor
+//    docs.
+//
 // Version 1.1 (2012-10-08)
 //
 // FIXED:
@@ -37,7 +44,6 @@
 // - not decoding items in the map_list structure - they're already
 //   referenced through other items in the header so adding them
 //   in the map_list would be reduntant
-// - colors?
 
 LittleEndian();
 
@@ -565,7 +571,7 @@ typedef struct {
 } string_item <size=readStringSize>;
 
 int readStringSize(string_item &item) {
-    return uleb128(startof(item)) + ;
+    return uleb128_value(startof(item)) + 3;
 }
 
 typedef struct {
@@ -589,7 +595,7 @@ typedef struct (int size) {
 } string_id_list <read=StringIDListRead, comment="String ID list", size=GetStringIdListSize>;
 
 int GetStringIdListSize(string_id_list &list) {
-    return list.s * 4;
+    return ReadUInt(56) * 4;
 }
 
 string StringIDListRead(string_id_list &l) {
@@ -616,7 +622,7 @@ typedef struct (int size) {
 } type_id_list <read=TypeIDListRead, size=GetTypeIdListSize>;
 
 int GetTypeIdListSize(type_id_list &list) {
-    return list.s * 4;
+    return ReadUInt(64) * 4;
 }
 
 string TypeIDListRead(type_id_list &l) {
@@ -730,7 +736,7 @@ typedef struct (int size) {
 } proto_id_list <read=ProtoIDListRead, size=GetProtoIdListSize>;
 
 int GetProtoIdListSize(proto_id_list &list) {
-    return list.s * 12;
+    return ReadUInt(72) * 12;
 }
 
 string ProtoIDListRead(proto_id_list &l) {
@@ -787,7 +793,7 @@ typedef struct (int size) {
 } field_id_list <read=FieldIDListRead, size=ReadFieldIdList>;
 
 int ReadFieldIdList(field_id_list &list) {
-    return list.s * 4;
+    return ReadUInt(80) * 4;
 }
 
 string FieldIDListRead(field_id_list &l) {
@@ -829,7 +835,7 @@ typedef struct (int size) {
 } method_id_list <read=MethodIDListRead, size=ReadMethodIdList>;
 
 int ReadMethodIdList(method_id_list &list) {
-    return list.s * 8;
+    return ReadUInt(88) * 8;
 }
 
 string MethodIDListRead(method_id_list &l) {
@@ -1272,7 +1278,7 @@ typedef struct (int size) {
 } class_def_item_list <read=ClassDefItemListRead, size=GetClassDefItemListSize>;
 
 int GetClassDefItemListSize(class_def_item_list &list) {
-    return list.s * 32;
+    return ReadUInt(96) * 32;
 }
 
 string ClassDefItemListRead(class_def_item_list &l) {
