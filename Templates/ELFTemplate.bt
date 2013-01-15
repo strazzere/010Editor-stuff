@@ -4,10 +4,17 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 2.1
+// Revision: 2.2
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
+//
+// Version 2.2
+// FIXED:
+//  - Fixed issues if the section header count is greater
+//    the actual number of sections that exist.
+//    More information;
+//      http://dustri.org/b/?p=832
 //
 // Version 2.1
 // FIXED:
@@ -717,11 +724,23 @@ struct {
 
 	// Find the header name block
 	if (file.elf_header.e_ident.ei_class_2 == ELFCLASS32 ) {
-		section_name_block_off = ReadUInt( section_name_off  + 2 * sizeof( Elf32_Word ) +
-			sizeof( Elf32_Xword ) + sizeof( Elf32_Addr ) );
+        if( FileSize() >= section_name_off  + 2 * sizeof( Elf32_Word ) +
+			sizeof( Elf32_Xword ) + sizeof( Elf32_Addr ) )
+		      section_name_block_off = ReadUInt( section_name_off  + 2 * sizeof( Elf32_Word ) +
+			       sizeof( Elf32_Xword ) + sizeof( Elf32_Addr ) );
+        else {
+            Printf("Invalid section header found, skipping!\n");
+            Warning("Invalid section header found, skipped and attempting to continue...");
+        }
 	} else {
-		section_name_block_off = ReadUQuad( section_name_off  + 2 * sizeof( Elf64_Word ) +
-			sizeof( Elf64_Xword ) + sizeof( Elf64_Addr ) );
+        if( FileSize() >= section_name_off  + 2 * sizeof( Elf64_Word ) +
+			sizeof( Elf64_Xword ) + sizeof( Elf64_Addr ) )
+		      section_name_block_off = ReadUQuad( section_name_off  + 2 * sizeof( Elf64_Word ) +
+			       sizeof( Elf64_Xword ) + sizeof( Elf64_Addr ) );
+        else {
+            Printf("Invalid section header found, skipping!\n");
+            Warning("Invalid section header found, skipped and attempting to continue...");
+        }
 	}
 
     local int sec_tbl_cur_elem;
