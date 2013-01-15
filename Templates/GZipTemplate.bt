@@ -1,0 +1,107 @@
+//--------------------------------------
+//--- 010 Editor v4.0.3 Binary Template
+//
+// File:     GZipTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose:  Quick template for parsing GZip data/files
+//--------------------------------------
+//
+// Version 1.0
+//  - First implementation of the template
+//
+
+// GZip's should be Little Endian only
+LittleEndian();
+
+typedef enum <ubyte> {
+    RESERVED_0  = 0,
+    RESERVED_1  = 1,
+    RESERVED_2  = 2,
+    RESERVED_3  = 3,
+    RESERVED_4  = 4,
+    RESERVED_5  = 5,
+    RESERVED_6  = 6,
+    RESERVED_7  = 7,
+    DEFALTE     = 8,
+} COMPRESSION;
+
+typedef struct {
+    // TODO : Probably some better way to do this
+    byte FLAG_TEXT : 1;
+    byte FLAG_HCRC : 1;
+    byte FLAG_EXTRA : 1;
+    byte FLAG_NAME : 1;
+    byte FLAG_COMMENT : 1;
+    byte FLAG_RESERVED : 1;
+    byte FLAG_RESERVED : 1;
+    byte FLAG_RESERVED : 1;
+} FLAGS;
+
+typedef enum <byte> {
+    FAT_FILESYSTEM  = 0,
+    AMIGA           = 1,
+    VMS             = 2,
+    UNIX            = 3,
+    VM_CMS          = 4,
+    ATARI_TOS       = 5,
+    HPFS_FILESYSTEM = 6,
+    MACINTOSH       = 7,
+    Z_SYSTEM        = 8,
+    CPM             = 9,
+    TOPS_20         = 10,
+    NTFS_FILESYSTEM = 11,
+    QDOS            = 12,
+    ACORN_RISCOS    = 13,
+    UNKNOWN         = 255
+} OS;
+
+typedef struct {
+	char magic_bytes[2]; // 0x1F8B
+    if(magic_bytes[0] != 0x1F && magic_bytes[1] != 0x8B) {
+        Warning("Does not appear to be a GZip file!");
+        exit(-1);
+    }
+
+    // TODO : Enum this sucker
+    COMPRESSION compression_method;
+
+    // Enum these as well
+    FLAGS flags;
+
+    // Convert to proper timestamp
+    uint modification_time;
+
+    // Extra flags
+    ubyte extra_flags;
+
+    // OS where compression took place
+    OS operating_system;
+
+    // Read in extras from flags
+    if(flags.FLAG_EXTRA == 1) {
+        ushort extra_length;
+        byte extra_bytes[extra_length];
+    }
+
+    if(flags.FLAG_NAME == 1) {
+        string original_file_name;
+    }
+
+    if(flags.FLAG_COMMENT == 1) {
+        string file_comment;
+    }
+
+    if(flags.FLAG_HCRC == 1) {
+        ushort crc16;
+    }
+} gzip_header;
+
+// Structure of gzip file
+struct {
+    // Header information
+    gzip_header header;
+
+    // Everything else should just be compress bytes
+    byte compressed[FileSize() - FTell()];
+} gzip_file;
