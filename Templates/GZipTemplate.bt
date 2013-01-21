@@ -3,9 +3,13 @@
 //
 // File:     GZipTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.1
+// Revision: 1.2
 // Purpose:  Quick template for parsing GZip data/files
 //--------------------------------------
+//
+// Version 1.2
+//  - Fix processing of part numbers for continuation based gzips
+//  - Added some notes on the encrypted header information
 //
 // Version 1.1
 //  - Fix small typos
@@ -20,7 +24,6 @@
 //
 // TODO: 
 //  - Parse encrypted header information
-//  - Parse continued gzip flag information
 
 // GZip's should be Little Endian only
 LittleEndian();
@@ -137,9 +140,9 @@ typedef struct {
     // OS where compression took place
     OS operating_system <comment="Operating system compression took place on">;
 
-    // If the file is a continuation - it should have a CRC (?)
+    // The file is marked as a continuation, so it should have a part number
     if(flags.FLAG_CONTINUATION == 1) {
-        // TODO: If continuation, then there should be a part# here, part 2 == 1
+        ushort part <comment="Part number of the continuation">;
     }
 
     // Read in extras from flags
@@ -157,6 +160,10 @@ typedef struct {
     }
 
     // TODO: Parse encrypted header info
+    //  -- according to the docs this is grabbed from the zip lib (crypt.h/crypt.c)
+    //     which according to their docs is hardly used or fully supported.
+    //     It would appear you would need to compile this directly into your gzip
+    //     sources for it to properly work, even though it's considered "valid".
     if(flags.FLAG_ENCRYPTED == 1) {
         // 12 bytes of encryption header data
     }
