@@ -3,37 +3,80 @@
 //
 // File:     GZipTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.0
+// Revision: 1.1
 // Purpose:  Quick template for parsing GZip data/files
 //--------------------------------------
+//
+// Version 1.1
+//  - Fix small typos
+//  - Added comments to fields
+//  - Fix compression/flag names according to gzip 1.2.4 source
+//  - Added uncompressed length and CRC32
+//  - Check for different common magic bytes, and display properly
+//  - Minor code clean up
 //
 // Version 1.0
 //  - First implementation of the template
 //
+// TODO: 
+//  - Parse encrypted header information
+//  - Parse continued gzip flag information
 
 // GZip's should be Little Endian only
 LittleEndian();
 
+// utility type to show the magic bytes in the value column
+typedef ubyte MAGIC[2] <read=MAGICRead, format=hex>;
+
+string MAGICRead(MAGIC magic) {
+    string ret;
+    string tmp;
+    int i;
+
+    for(i = 0; i<2; i++) {
+        SPrintf(tmp, "%.2X", magic[i]);
+        ret += tmp;
+    }
+
+    return ret;
+}
+
 typedef enum <ubyte> {
-    RESERVED_0  = 0,
-    RESERVED_1  = 1,
-    RESERVED_2  = 2,
-    RESERVED_3  = 3,
+    // All below, except DEFLATE are reserved
+    STORED      = 0,
+    COMPRESSED  = 1,
+    PACKED      = 2,
+    LZHED       = 3,
     RESERVED_4  = 4,
     RESERVED_5  = 5,
     RESERVED_6  = 6,
     RESERVED_7  = 7,
-    DEFALTE     = 8,
+    // Default (and most common)
+    DEFLATE     = 8
 } COMPRESSION;
 
+
+// TODO : Probably some better way to do this
 typedef struct {
-    // TODO : Probably some better way to do this
-    byte FLAG_TEXT : 1;
-    byte FLAG_HCRC : 1;
+    // File is probably ascii text (determined by compressor)
+    byte FLAG_ASCII_TEXT : 1;
+
+    // Continuation of multi-part gzip file
+    byte FLAG_CONTINUATION : 1;
+
+    // Generic extra field present
     byte FLAG_EXTRA : 1;
+
+    // Original filename present
     byte FLAG_NAME : 1;
+
+    // File comment present
     byte FLAG_COMMENT : 1;
-    byte FLAG_RESERVED : 1;
+
+    // Is file encrypted?
+    byte FLAG_ENCRYPTED : 1;
+
+    // Reserved for future use (nothing as of gzip 1.2.4
     byte FLAG_RESERVED : 1;
     byte FLAG_RESERVED : 1;
 } FLAGS;
@@ -57,51 +100,79 @@ typedef enum <byte> {
 } OS;
 
 typedef struct {
-	char magic_bytes[2]; // 0x1F8B
-    if(magic_bytes[0] != 0x1F && magic_bytes[1] != 0x8B) {
+	MAGIC magic_bytes <format=hex, comment="Magic bytes for the file">;
+
+    // Should be a better way to parse the magic bytes and complain to user...
+    if(magic_bytes[0] == 0x1F) {
+        if(magic_bytes[1] == 0x8B) {
+            // GZIP_MAGIC
+            Printf("Appears to be a valid GZIP compressed file, attempting to parse.\n");
+        } else if(magic_bytes[1] == 0x1E) {
+            // PACK_MAGIC
+            Printf("Appears to be a generic compressed file, attempting to parse - don't expect much though.\n");
+        } else if(magic_bytes[1] == 0x9E) {
+            // OLD_GZIP_MAGIC
+            Printf("Appears to be an old GZip compressed file, attempting to parse - don't expect much though.\n");
+        } else if(magic_bytes[1] == 0xA0) {
+            // LZH_MAGIC
+            Printf("Appears to be a LZH compressed file, attempting to parse - don't expect much though.\n");
+        }
+    } else if(magic_bytes[0] == 0x50 && magic_bytes[1] == 0x4B) {
+        Warning("Appears to be a possible ZIP file - unable to parse with this template!");
+        Exit(-1);
+    } else {
         Warning("Does not appear to be a GZip file!");
-        exit(-1);
+        Exit(-1);
     }
 
-    // TODO : Enum this sucker
-    COMPRESSION compression_method;
-
-    // Enum these as well
-    FLAGS flags;
+    COMPRESSION compression_method <comment="Compression method used by engine">;
+    FLAGS flags <comment="Optional flags for compressed section">;
 
     // Convert to proper timestamp
-    uint modification_time;
+    uint modification_time <comment="Unix timestamp of the file modification time">;
 
     // Extra flags
-    ubyte extra_flags;
+    ubyte extra_flags <comment="Extra flags, dependant on compression method">;
 
     // OS where compression took place
-    OS operating_system;
+    OS operating_system <comment="Operating system compression took place on">;
+
+    // If the file is a continuation - it should have a CRC (?)
+    if(flags.FLAG_CONTINUATION == 1) {
+        // TODO: If continuation, then there should be a part# here, part 2 == 1
+    }
 
     // Read in extras from flags
     if(flags.FLAG_EXTRA == 1) {
-        ushort extra_length;
-        byte extra_bytes[extra_length];
+        ushort extra_length <comment="Length of extra field">;
+        byte extra_bytes[extra_length] <comment="Data for extra field">;
     }
 
     if(flags.FLAG_NAME == 1) {
-        string original_file_name;
+        string original_file_name <comment="Original file name">;
     }
 
     if(flags.FLAG_COMMENT == 1) {
-        string file_comment;
+        string file_comment <comment="File comment">;
     }
 
-    if(flags.FLAG_HCRC == 1) {
-        ushort crc16;
+    // TODO: Parse encrypted header info
+    if(flags.FLAG_ENCRYPTED == 1) {
+        // 12 bytes of encryption header data
     }
 } gzip_header;
 
 // Structure of gzip file
 struct {
     // Header information
-    gzip_header header;
+    gzip_header header <comment="GZip header information">;
 
-    // Everything else should just be compress bytes
-    byte compressed[FileSize() - FTell()];
+    // Everything else should just be compress bytes, less the last 8 bytes
+    // which contain the CRC32 and uncompressed size
+    byte compressed[FileSize() - FTell() - 8] <comment="compressed data section">;
+
+    uint CRC32 <format=hex, comment="CRC of the data section">;
+
+    // 4 bytes uncompressed input size modulo 2^32
+    uint uncompressed_sized <comment="Size of the uncompressed input">;
 } gzip_file;
