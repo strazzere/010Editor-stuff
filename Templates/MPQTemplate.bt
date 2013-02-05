@@ -1,0 +1,134 @@
+//--------------------------------------
+//--- 010 Editor v3.2.2 Binary Template
+//
+// File:     MPQTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose:  Parse the MPQ (Mo'PaQ, short for Mike O'Brien Pack) file format,
+//           using in Blizzard games. Purely a POC/WIP - doesn't fully work yet.
+//--------------------------------------
+
+#define MD5_DIGEST_SIZE (16)
+
+LittleEndian();
+
+typedef struct {
+    int64 extended_offset;
+    int16 hash_table_offset_high;
+    int16 block_table_offset_high;
+} mpq_header_v2_extension;
+
+typedef struct {
+    int64 archive_size;
+    int64 bet_table_offset;
+    int64 het_table_offset;
+} mpq_header_v3_extension;
+
+typedef struct {
+    int64 hash_table_size;
+    int64 block_table_size;
+    int64 hiblock_table_size;
+    int64 het_table_size;
+    int64 bet_table_size;
+    int32 raw_chunk_size;
+
+    char md5_block_table[MD5_DIGEST_SIZE];
+    char md5_hash_table[MD5_DIGEST_SIZE];
+    char md5_hiblock_table[MD5_DIGEST_SIZE];
+    char md5_bet_table[MD5_DIGEST_SIZE];
+    char md5_het_table[MD5_DIGEST_SIZE];
+    char md5_mpq_table[MD5_DIGEST_SIZE];
+} mpq_header_v4_extension;
+
+typedef struct {
+    char mpq_magic[4] <format=hex, comment="Magic bytes">;
+    int32 header_size <comment="MPQ archive header size">;
+    int32 archive_size <comment="Size of archive">;
+    int16 format_version <comment="Version, used for properly parsing">;
+
+    if(format_version == 1 && header_size != 0x20) {
+        Warning("A version 1 MPQ must have a header size of exactly 0x20!");
+        Exit(-1);
+    } else if(format_version == 2 && header_size != 0x2C) {
+        Warning("A version 2 MPQ must have a header size of exactly 0x2C!");
+        Exit(-1);
+    } else if(format_version == 3 && header_size < 0x2C) {
+        Warning("A version 3 MPQ must have a header size greater than 0x2C!");
+        Exit(-1);
+    } else if(format_version == 4 && header_size != 0xD0) {
+        Warning("A version 4 MPQ must have a header size of exactly 0xD0!");
+        Exit(-1);
+    }
+
+    int16 sector_size <comment="Size of file blocks used">;
+    int32 hash_table_offset <comment="Position of mpq_hash">;
+    int32 block_tablet_offset <comment="Position of mpq_block">;
+    int32 hash_table_count  <comment="Entries in the hash table">;
+    int32 block_table_count  <comment="Entries in the block table">;
+
+    if(format_version >= 2) {
+        mpq_header_v2_extension v2_header_extension;
+        if(format_version >= 3) {
+            mpq_header_v3_extension v3_header_extension;
+            if(format_version >= 4) {
+                mpq_header_v4_extension v4_header_extension;
+            }
+        }
+    }
+} mpq_header;
+
+typedef struct {
+    char signature[4];
+    int32 version;
+    int32 data_size;
+    int32 table_size;
+    int32 max_file_count;
+    int32 hash_table_size;
+    int32 hash_entry_size;
+    int32 total_index_size;
+    int32 index_size_extra;
+    int32 index_size;
+    int32 block_table_size;
+
+//    byte het_hash_table[hash_table_size];
+} het_table;
+
+typedef struct {
+    int32 hash_a <comment="Hash of encrypted file">;
+    int32 hash_b <comment="Hash of encrypted file">;
+    int16 locale <comment="Locale information">;
+    int16 platform <comment="Platform information (zero default)">;
+    int32 block_table_index <comment="Index to file description block">;
+} mpq_hash;
+
+typedef struct {
+    int32 offset <comment="Starting position inside archive">;
+    int32 packed_size <comment="Packed file size">;
+    int32 unpacked_size <comment="Unpacked file size">;
+    int32 flags;
+} mpq_block;
+
+typedef struct {
+    int16 offset;
+} mpq_block_extension;
+
+typedef struct {
+    int32 block_table_indices <comment="Mapping for file number to block entry">;
+    int32 block_table_diff  <comment="Block table difference between valid blocks and invalid blocks previously seen">;
+} mpq_map;
+
+mpq_header header <comment="MPQ Header Structure">;
+if(header.mpq_magic != "MPQ\x1A") {
+    Warning("Magic does not appear to match! Parsing will fail!");
+}
+
+if(header.format_version >= 3) {
+    FSeek(header.v3_header_extension.het_table_offset);
+    het_table hettable;
+}
+
+FSeek(header.hash_table_offset);
+mpq_hash hash[header.hash_table_count];
+
+FSeek(header.block_tablet_offset);
+mpq_block block[header.block_table_count];
