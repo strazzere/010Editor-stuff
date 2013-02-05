@@ -1,0 +1,743 @@
+//--------------------------------------
+//--- 010 Editor v3.2.2 Binary Template
+//
+// File:     MachOTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose:  Quick template for parsing Macho-o binaries - not fully working!
+//--------------------------------------
+// Known issues:
+//  - Currently only works on a MACHO_32/_64 bit application, if it starts with
+//    a FAT file it will no do anything but parse the header
+//  - Needs optimized structures otherwise anything of a decent size will kill it
+//    (Related to an 010Editor template bug)
+//  - Needs lot of functionality to be fleshed out
+//
+
+// Mach-o's should be Little Endian only -- except for the fat_header/fat_archLittleEndian();
+
+typedef enum <uint> {
+    MACHO_32        = 0xFEEDFACE, // 32-bit mach object file
+    MACHO_64        = 0xFEEDFACF, // 64-bit mach object file
+    MACHO_FAT       = 0xCAFEBABE, // Universal object file / FAT_MAGIC
+    MACHO_FAT_CIGAM = 0xBEBAFECA
+} Magic <format=hex>;
+
+#define CPU_ARCH_MASK       0xff000000
+#define CPU_ARCH_ABI64      0x01000000
+
+#define CPU_TYPE_X86        0x7
+#define CPU_TYPE_I386       CPU_TYPE_X86
+#define CPU_TYPE_X86_64     (CPU_TYPE_X86 | CPU_ARCH_ABI64)
+#define CPU_TYPE_POWERPC    0x12
+#define CPU_TYPE_POWERPC64  (CPU_TYPE_POWERPC | CPU_ARCH_ABI64)
+#define CPU_TYPE_ARM        0xC
+
+typedef enum <uint> {
+    MACH_OBJECT       = 0x1,
+    MACH_EXECUTE      = 0x2,
+    MACH_FVMLIB       = 0x3,
+    MACH_CORE         = 0x4,
+    MACH_PRELOAD      = 0x5,
+    MACH_DYLIB        = 0x6,
+    MACH_DYLINKER     = 0x7,
+    MACH_BUNDLE       = 0x8,
+    MACH_DYLIB_STUB   = 0x9,
+    MACH_DSYM         = 0xA,
+    MACH_KEXT_BUNDLE  = 0xB,
+} FileType;
+
+typedef enum <uint> {
+    i386_THREAD_STATE       = 0x1,
+    i386_FLOAT_STATE        = 0x2,
+    i386_EXCEPTION_STATE    = 0x3
+} i386ThreadFlavor <format=hex>;
+
+typedef struct {
+    uint32 eax <format=hex>;
+    uint32 ebx <format=hex>;
+    uint32 ecx <format=hex>;
+    uint32 edx <format=hex>;
+    uint32 edi <format=hex>;
+    uint32 esi <format=hex>;
+    uint32 ebp <format=hex>;
+    uint32 esp <format=hex>;
+    uint32 ss <format=hex>;
+    uint32 eflags <format=hex>;
+    uint32 eip <format=hex>;
+    uint32 cs <format=hex>;
+    uint32 ds <format=hex>;
+    uint32 es <format=hex>;
+    uint32 fs <format=hex>;
+    uint32 gs <format=hex>;
+} i386ThreadState;
+
+typedef enum <uint> {
+    x86_THREAD_STATE32      = 0x1,
+    x86_FLOAT_STATE32       = 0x2,
+    x86_EXCEPTION_STATE32   = 0x3,
+    x86_THREAD_STATE64      = 0x4,
+    x86_FLOAT_STATE64       = 0x5,
+    x86_EXCEPTION_STATE64   = 0x6,
+    x86_THREAD_STATE        = 0x7,
+    x86_FLOAT_STATE         = 0x8,
+    x86_EXCEPTION_STATE     = 0x9,
+    x86_DEBUG_STATE32       = 0xA,
+    x86_DEBUG_STATE64       = 0xB,
+    x86_DEBUG_STATE         = 0xC,
+    THREAD_STATE_NONE       = 0xD
+} x86ThreadFlavor <format=hex>;
+
+typedef struct {
+    uint64 rax <format=hex>;
+    uint64 rbx <format=hex>;
+    uint64 rcx <format=hex>;
+    uint64 rdx <format=hex>;
+    uint64 rdi <format=hex>;
+    uint64 rsi <format=hex>;
+    uint64 rbp <format=hex>;
+    uint64 rsp <format=hex>;
+    uint64 r8 <format=hex>;
+    uint64 r9 <format=hex>;
+    uint64 r10 <format=hex>;
+    uint64 r11 <format=hex>;
+    uint64 r12 <format=hex>;
+    uint64 r13 <format=hex>;
+    uint64 r14 <format=hex>;
+    uint64 r15 <format=hex>;
+    uint64 rip <format=hex>;
+    uint64 rflags <format=hex>;
+    uint64 cs <format=hex>;
+    uint64 fs <format=hex>;
+    uint64 gs <format=hex>;
+} x86ThreadState;
+
+typedef enum <uint> {
+    PPC_THREAD_STATE        = 0x1,
+    PPC_FLOAT_STATE         = 0x2,
+    PPC_EXCEPTION_STATE     = 0x3,
+    PPC_VECTOR_STATE        = 0x4,
+    PPC_THREAD_STATE64      = 0x5,
+    PPC_EXCEPTION_STATE64   = 0x6
+} PPCThreadFlavor <format=hex>;
+
+typedef struct {
+    uint32 r0 <format=hex>;
+    uint32 r1 <format=hex>;
+    uint32 r2 <format=hex>;
+    uint32 r3 <format=hex>;
+    uint32 r4 <format=hex>;
+    uint32 r5 <format=hex>;
+    uint32 r6 <format=hex>;
+    uint32 r7 <format=hex>;
+    uint32 r8 <format=hex>;
+    uint32 r9 <format=hex>;
+    uint32 r10 <format=hex>;
+    uint32 r11 <format=hex>;
+    uint32 r12 <format=hex>;
+    uint32 r13 <format=hex>;
+    uint32 r14 <format=hex>;
+    uint32 r15 <format=hex>;
+    uint32 r16 <format=hex>;
+} ARMThreadState;
+
+typedef struct {
+    uint32 __srr0 <comment="Instruction address register (PC)">;
+    uint32 __srr1 <comment="Machine state register (supervisor)">;
+    uint32 __r0;
+    uint32 __r1;
+    uint32 __r2;
+    uint32 __r3;
+    uint32 __r4;
+    uint32 __r5;
+    uint32 __r6;
+    uint32 __r7;
+    uint32 __r8;
+    uint32 __r9;
+    uint32 __r10;
+    uint32 __r11;
+    uint32 __r12;
+    uint32 __r13;
+    uint32 __r14;
+    uint32 __r15;
+    uint32 __r16;
+    uint32 __r17;
+    uint32 __r18;
+    uint32 __r19;
+    uint32 __r20;
+    uint32 __r21;
+    uint32 __r22;
+    uint32 __r23;
+    uint32 __r24;
+    uint32 __r25;
+    uint32 __r26;
+    uint32 __r27;
+    uint32 __r28;
+    uint32 __r29;
+    uint32 __r30;
+    uint32 __r31;
+
+    uint32 __cr <comment="Condition register">;
+    uint32 __xer <comment="User's integer exception register">;
+    uint32 __lr <comment="Link register">;
+    uint32 __ctr <comment="Count register">;
+    uint32 __mq <comment="MQ Register (601 only)">;
+
+    uint32 __vrsave <comment="Vector save register">;
+} PPCThreadState;
+
+typedef enum <uint> {
+    MACH_NOUNDEFS                   = 0x1,
+    MACH_INCRLINK                   = 0x2,
+    MACH_DYLDLINK                   = 0x4,
+    MACH_BINDATLOAD                 = 0x8,
+    MACH_PREBOUND                   = 0x10,
+    MACH_SPLIT_SEGS                 = 0x20,
+    MACH_LAZY_INIT                  = 0x40,
+    MACH_TWOLEVEL                   = 0x80,
+    MACH_FORCE_FLAT                 = 0x100,
+    MACH_NOMULTIDEFS                = 0x200,
+    MACH_NOFIXPREBINDING            = 0x400,
+    MACH_PREBINDABLE                = 0x800,
+    MACH_ALLMODSBOUND               = 0x1000,
+    MACH_SUBSECTIONS_VIA_SYMBOLS    = 0x2000,
+    MACH_CANONICAL                  = 0x4000,
+    MACH_WEAK_DEFINES               = 0x8000,
+    MACH_BINDS_TO_WEAK              = 0x10000,
+    MACH_ALLOW_STACK_EXECUTION      = 0x20000,
+    MACH_ROOT_SAFE                  = 0x40000,
+    MACH_SETUID_SAFE                = 0x80000,
+    MACH_NO_REEXPORTED_DYLIBS       = 0x100000,
+    MACH_PIE                        = 0x200000,
+    MACH_DEAD_STRIPPABLE_DYLIB      = 0x400000,
+    MACH_HAS_TLV_DESCRIPTORS        = 0x800000,
+    MACH_NO_HEAP_EXECUTION          = 0x1000000
+} Flags;
+
+typedef struct {
+    uint32 cpu_type;
+    uint32 cpu_sub_type;
+    FileType file_type;
+    uint32 num_load_commands;
+    uint32 size_of_load_commands;
+} Fat_Arch;
+
+typedef struct {
+    Magic magic <comment="Magic bytes for the file">;
+
+    if(magic == MACHO_FAT || magic == MACHO_FAT_CIGAM) {
+        // Need to switch to BigEndian!
+        BigEndian();
+        uint32 number_fat_arch <comment="Number of fat_arch structs">;
+        Fat_Arch fat_arch[number_fat_arch];
+    } else {
+        uint32 cpu_type <format=hex>;
+        uint32 cpu_sub_type <format=hex>;
+        FileType file_type;
+        uint32 num_load_commands;
+        uint32 size_of_load_commands;
+        Flags flags;
+    }
+    if(magic == MACHO_64) {
+        uint32 reserved;
+    }
+} Header;
+
+#define REQ_DYLD (0x80000000)
+
+typedef enum <uint> {
+    SEGMENT                 = 0x1,
+    SYM_TAB                 = 0x2,
+    SYM_SEG                 = 0x3,
+    THREAD                  = 0x4,
+    UNIX_THREAD             = 0x5,
+    LOAD_FVM_LIB            = 0x6,
+    ID_FVM_LIB              = 0x7,
+    IDENT                   = 0x8,
+    FVM_FILE                = 0x9,
+    PREPAGE                 = 0xA,
+    DY_SYM_TAB              = 0xB,
+    LOAD_DYLIB              = 0xC,
+    ID_DYLIB                = 0xD,
+    LOAD_DYLINKER           = 0xE,
+    ID_DYLINKER             = 0xF,
+    PREBOUND_DYLIB          = 0x10,
+    ROUTINES                = 0x11,
+    SUB_FRAMEWORK           = 0x12,
+    SUB_UMBRELLA            = 0x13,
+    SUB_CLIENT              = 0x14,
+    SUB_LIBRARY             = 0x15,
+    TWOLEVEL_HINTS          = 0x16,
+    PREBIND_CKSUM        = 0x17,
+    LOAD_WEAK_DYLIB         = 0x18 | REQ_DYLD,
+    SEGMENT_64              = 0x19,
+    ROUTINES_64             = 0x1A,
+    UUID                    = 0x1B,
+    RPATH                   = 0x1C | REQ_DYLD,
+    CODE_SIGNATURE          = 0x1D,
+    SEGMENT_SPLIT_INFO      = 0x1E,
+    REEXPORT_DYLIB          = 0x1F | REQ_DYLD,
+    LAZY_LOAD_DYLIB         = 0x20,
+    ENCRYPTION_INFO         = 0x21,
+    DYLD_INFO               = 0x22,
+    DYLD_INFO_ONLY          = 0x22 | REQ_DYLD,
+    LOAD_UPWARD_DYLIB       = 0x23 | REQ_DYLD,
+    VERSION_MIN_MAC_OSX     = 0x24,
+    VERSION_MIN_IPHONE_OS   = 0x25,
+    FUNCTION_STARTS         = 0x26,
+    DYLD_ENVIRONMENT        = 0x27,
+    MAIN                    = 0x28,
+    DATA_IN_CODE            = 0x29,
+    SOURCE_VERSION          = 0x2A,
+    DYLIB_CODE_SIGN_DRS     = 0x2B
+} LoadCommandType <read=LoadCommandTypeRead>;
+
+string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
+    switch(loadCommandType) {
+        case SEGMENT :
+            return "SEGMENT";
+        case SYM_TAB :
+            return "SYM_TAB";
+        case SYM_SEG :
+            return "SYM_SEG";
+        case THREAD :
+            return "THREAD";
+        case UNIX_THREAD :
+            return "UNIX_THREAD";
+        case LOAD_FVM_LIB :
+            return "LOAD_FVM_LIB";
+        case ID_FVM_LIB :
+            return "ID_FVM_LIB";
+        case IDENT :
+            return "IDENT";
+        case FVM_FILE :
+            return "FVM_FILE";
+        case PREPAGE :
+            return "PREPAGE";
+        case DY_SYM_TAB :
+            return "DY_SYM_TAB";
+        case LOAD_DYLIB :
+            return "LOAD_DYLIB";
+        case ID_DYLIB :
+            return "ID_DYLIB";
+        case LOAD_DYLINKER :
+            return "LOAD_DYLINKER";
+        case ID_DYLINKER :
+            return "ID_DYLINKER";
+        case PREBOUND_DYLIB :
+            return "PREBOUND_DYLIB";
+        case ROUTINES :
+            return "ROUTINES";
+        case SUB_FRAMEWORK :
+            return "SUB_FRAMEWORK";
+        case SUB_UMBRELLA :
+            return "SUB_UMBRELLA";
+        case SUB_CLIENT :
+            return "SUB_CLIENT";
+        case SUB_LIBRARY :
+            return "SUB_LIBRARY";
+        case TWOLEVEL_HINTS :
+            return "TWOLEVEL_HINTS";
+        case PREBIND_CKSUM :
+            return "PREBIND_CKSUM";
+        case LOAD_WEAK_DYLIB :
+            return "LOAD_WEAK_DYLIB";
+        case SEGMENT_64 :
+            return "SEGMENT_64";
+        case ROUTINES_64 :
+            return "ROUTINES_64";
+        case UUID :
+            return "UUID";
+        case RPATH :
+            return "RPATH";
+        case CODE_SIGNATURE :
+            return "CODE_SIGNATURE";
+        case SEGMENT_SPLIT_INFO :
+            return "SEGMENT_SPLIT_INFO";
+        case REEXPORT_DYLIB :
+            return "REEXPORT_DYLIB";
+        case LAZY_LOAD_DYLIB :
+            return "LAZY_LOAD_DYLIB";
+        case ENCRYPTION_INFO :
+            return "ENCRYPTION_INFO";
+        case DYLD_INFO :
+            return "DYLD_INFO";
+        case DYLD_INFO_ONLY :
+            return "DYLD_INFO_ONLY";
+        case LOAD_UPWARD_DYLIB :
+            return "LOAD_UPWARD_DYLIB";
+        case VERSION_MIN_MAC_OSX :
+            return "VERSION_MIN_MAC_OSX";
+        case VERSION_MIN_IPHONE_OS :
+            return "VERSION_MIN_IPHONE_OS";
+        case FUNCTION_STARTS :
+            return "FUNCTION_STARTS";
+        case DYLD_ENVIRONMENT :
+            return "DYLD_ENVIRONMENT";
+        case MAIN :
+            return "MAIN";
+        case DATA_IN_CODE :
+            return "DATA_IN_CODE";
+        case SOURCE_VERSION :
+            return "SOURCE_VERSION";
+        case DYLIB_CODE_SIGN_DRS :
+            return "DYLIB_CODE_SIGN_DRS";
+        default :
+            return "Error";
+    }
+}
+
+typedef struct {
+    char section_name[16];
+    char segment_name[16];
+    if(header.magic != MACHO_64) {
+        uint32 address <format=hex>;
+        uint32 size <format=hex>;
+    } else {
+        uint64 address <format=hex>;
+        uint64 size <format=hex>;
+    }
+    uint32 offset;
+    uint32 section_alignment;
+    uint32 relocation_entry_offset;
+    uint32 number_of_relocation_entries;
+    uint32 flags <format=hex>;
+    uint32 reserved1;
+    uint32 reserved2;
+} Section <optimize=false>;
+
+typedef uint vm_proc;
+
+typedef enum <uint> {
+    HIGH_VM                 = 0x1,
+    FVM_LIB                 = 0x2,
+    NO_RELOC                = 0x4,
+    PROTECTION_VERSION_1    = 0x8
+} SegmentFlags <format=hex>;
+
+typedef struct {
+    uint32 load_command_string_offset <comment="Offset in respect to the start of load command to string data">; 
+
+    local int64 pos = FTell();
+    // We need to goto beginning of LoadCommand, then goto the offset
+    FSeek(FTell() - (sizeof(uint32) * 3) + load_command_string_offset);
+
+    string string_data <comment="Load command string">;
+    
+    FSeek(pos);
+} LoadCommandString <read=LoadCommandStringRead>;
+
+string LoadCommandStringRead(LoadCommandString &loadCommandString) {
+    return loadCommandString.string_data;
+};
+
+typedef ubyte Uuid[16] <read=UuidRead, format=hex>;
+
+// TODO : Clean this ugly thing up
+string UuidRead(Uuid uuid) {
+    local string ret, tmp;
+    local int i;
+
+    for(i = 0; i<4; i++) {
+        SPrintf(tmp, "%.2X", uuid[i]);
+        ret += tmp;
+    }
+    ret += "-";
+
+    for(i = 0; i<2; i++) {
+        SPrintf(tmp, "%.2X", uuid[i+4]);
+        ret += tmp;
+    }
+    ret += "-";
+
+    for(i = 0; i<2; i++) {
+        SPrintf(tmp, "%.2X", uuid[i+6]);
+        ret += tmp;
+    }
+    ret += "-";
+
+    for(i = 0; i<2; i++) {
+        SPrintf(tmp, "%.2X", uuid[i+8]);
+        ret += tmp;
+    }
+    ret += "-";
+
+    for(i = 0; i<6; i++) {
+        SPrintf(tmp, "%.2X", uuid[i+10]);
+        ret += tmp;
+    }
+    return ret;
+}
+
+typedef struct {
+    //LoadCommandHead loadCommandHead <comment="Load command type and size">;
+    LoadCommandType command;
+    uint command_size;
+
+    // Process rest of load command based on command type
+    switch(command) {
+    case ID_DYLIB :
+    case LOAD_DYLIB :
+    case LOAD_WEAK_DYLIB :
+    case REEXPORT_DYLIB :
+        LoadCommandString name;
+        uint32 timestamp;
+        uint32 current_version;
+        uint32 compatibility_version;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 6));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case SYM_TAB :
+        uint32 symbol_table_offset <comment="Symbol table offsett address">;
+        uint32 number_of_symbol_table_entries <comment="Number of symbol table entries">;
+        uint32 string_table_offset <comment="String table offset">;
+        uint32 string_table_size <comment="String table size in bytes">;
+        break;
+    case DYLD_INFO :
+    case DYLD_INFO_ONLY :
+        uint32 rebase_offset;
+        uint32 rebase_size;
+        uint32 bind_offset;
+        uint32 bind_size;
+        uint32 weak_bind_offset;
+        uint32 weak_bind_size;
+        uint32 lazy_bind_offset;
+        uint32 lazy_bind_size;
+        uint32 export_offset;
+        uint32 export_size;
+        break;
+    case DY_SYM_TAB :
+        uint32 index_local_symbols;
+        uint32 local_symbols_size;
+        uint32 index_externally_defined_symbols;
+        uint32 externally_defined_symbols_size;
+        uint32 index_undefined_symbols;
+        uint32 undefined_symbols_size;
+        uint32 table_contents_offset;
+        uint32 enteries_toc_size;
+        uint32 file_offset_module_table;
+        uint32 module_table_entries_size;
+        uint32 external_references_symbol_table_offset;
+        uint32 external_references_symbol_table_size;
+        uint32 indirect_symbol_table_offset;
+        uint32 indirect_symbol_table_size;
+        uint32 external_relocation_entries_offset;
+        uint32 external_relocation_entries_size;
+        uint32 local_relocation_entries_offset;
+        uint32 local_relocation_entries_size;
+        break;
+    case UUID :
+        Uuid uuid;
+        break;
+    case VERSION_MIN_MAC_OSX :
+        uint32 version;
+        uint32 reserved;
+        break;
+    case FUNCTION_STARTS :
+    case CODE_SIGNATURE :
+    case SEGMENT_SPLIT_INFO:
+        uint32 data_offset;
+        uint32 data_size;
+        break;
+    case UNIX_THREAD :
+    case THREAD :
+        switch(header.cpu_type) {
+            case CPU_TYPE_X86 :
+            case CPU_TYPE_I386 :
+                i386ThreadFlavor flavor;
+                uint32 count;
+                switch(flavor) {
+                    case i386_THREAD_STATE :
+                        i386ThreadState threadState;
+                    // TODO : Flesh these guys out
+                    case i386_FLOAT_STATE :
+                    case i386_EXCEPTION_STATE :
+                }
+                break;
+            case CPU_TYPE_X86_64 :
+                x86ThreadFlavor flavor;
+                uint32 count;
+                switch(flavor) {
+                    case x86_THREAD_STATE64 :
+                        x86ThreadState threadState;
+                        break;
+                    // TODO : Flesh these guys out
+                    case x86_FLOAT_STATE64 :
+                    case x86_EXCEPTION_STATE64 :
+                    case x86_DEBUG_STATE64 :
+                }
+                break;
+            case CPU_TYPE_POWERPC :
+            case CPU_TYPE_POWERPC64 :
+                PPCThreadFlavor flavor;
+                uint32 count;
+                switch(flavor) {
+                    case PPC_THREAD_STATE :
+                        PPCThreadState threadState;
+                        break;
+                    // TODO : Flesh these guys out
+                    case  PPC_FLOAT_STATE  :
+                    case PPC_EXCEPTION_STATE :
+                    case PPC_VECTOR_STATE :
+                    case PPC_THREAD_STATE64 :
+                    case PPC_EXCEPTION_STATE64 :
+                }
+                break;
+            case CPU_TYPE_ARM :
+                // TODO: Unsure if this is correct ?
+//                uint32 flavor;
+//                uint32 count;
+                ARMThreadState threadState;
+                break;
+        }
+        break;
+    case FVM_LIB :
+    case ID_FVM_LIB :
+        LoadCommandString name <comment="Fixed virtual memory library's target path name">;
+        uint32 minor_version <comment="Library's minor version number">;
+        uint32 header_address <comment="Library's header address">;
+
+//        Reposition(command_size, sizeof(uint32) * 5);
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 5));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case SUB_FRAMEWORK :
+        LoadCommandString umbrella <comment="Umbrella framework name">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case SUB_CLIENT :
+        LoadCommandString client <comment="Client name">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case SUB_UMBRELLA :
+        LoadCommandString sub_umbrella <comment="Sub umbrella framework name">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case SUB_LIBRARY :
+        LoadCommandString sub_library <comment="Sub library name">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case PREBOUND_DYLIB :
+        LoadCommandString name <comment="Library's path name">;
+        uint32 modules_size <comment="Number of modules inside library">;
+        LoadCommandString linked_modules <comment="Bit vector of linked modules">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 5));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case ID_DYLINKER :
+    case LOAD_DYLINKER :
+        LoadCommandString name <comment="Dynamic linker's path name">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case ROUTINES :
+        if(header.magic != MACHO_64) {
+            uint64 init_address <comment="Address of initialization routine">;
+            uint64 init_module <comment="Index into module table that init routine is defined">;
+        } else {
+            uint32 init_address <comment="Address of initialization routine">;
+            uint32 init_module <comment="Index into module table that init routine is defined">;
+        }
+        uint32 reversed_1;
+        uint32 reversed_2;
+        uint32 reversed_3;
+        uint32 reversed_4;
+        uint32 reversed_5;
+        uint32 reversed_6;
+        break;
+
+    case TWOLEVEL_HINTS :
+        uint32 offset <comment="Offset into the hint table">;
+        uint32 hints_size <comment="Number of hints inside the hints table">;
+        break;
+    case PREBIND_CKSUM :
+        uint32 cksum <comment="Checksum or zero">;
+        break;
+    case RPATH:
+        LoadCommandString path <comment="Path to add to run path">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 3));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    case ENCRYPTION_INFO :
+        uint32 crypt_offset <comment="File offset of encrypted range">;
+        uint32 crypt_size <comment="File size of the encrypted range">;
+        uint32 crypt_id <comment="Which encryption system, 0 means not-encrypted yet">;
+        break;
+    case IDENT :
+        break;
+    case FVM_FILE :
+        LoadCommandString name <comment="File's pathname">;
+        uint32 header_address <comment="File's virtual address">;
+
+        // Seek to the beginning of the LoadCommand
+        FSeek(FTell() - (sizeof(uint32) * 4));
+        // Then skip to the end of the command based on the command_size
+        FSkip(command_size);
+        break;
+    default :
+        char segment_name[16];
+
+        if(header.magic != MACHO_64) {
+            uint32 vm_address <format=hex>;
+            uint32 vm_size <format=hex>;
+            uint32 file_off;
+            uint32 file_size;
+        } else {
+            uint64 vm_address <format=hex>;
+            uint64 vm_size <format=hex>;
+            uint64 file_off;
+            uint64 file_size;
+        }
+        vm_proc maximum_protection <format=hex>;
+        vm_proc initial_protection <format=hex>;
+        uint32 number_of_sections;
+        // TODO : Fix this enum
+        SegmentFlags flags;
+
+        // Having this if statement will prevent warnings in 010Editor
+        if(number_of_sections > 0) {
+            Section section[number_of_sections];
+        }
+    }
+} LoadCommand <read=LoadCommandReader, optimize=false>;
+
+string LoadCommandReader(LoadCommand &loadCommand) {
+    return LoadCommandTypeRead(loadCommand.command) + " load command";
+}
+
+Header header <comment="Mach-o header information">;
+if(header.magic == MACHO_32 || header.magic == MACHO_64) {
+    LoadCommand loadCommand[header.num_load_commands];
+} else {
+    // Handle FAT stuff
+}
