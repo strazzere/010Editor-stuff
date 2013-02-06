@@ -3,15 +3,24 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.1
-// Purpose:  Quick template for parsing Macho-o binaries - not fully working!
+// Revision: 1.0
+// Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
+//
+// Version 1.0
+//  - Correctly parses FAT headers and will continue to parse the rest of the combined
+//    binary
+//  - Added many todo's to make the output more pretty
+//  - Fixed some broken LoadCommands (64bit ones mainly), will gracefully fail if unknown
+//    LoadCommand is hit
+//  - Found some bugs in 010Editor and added fixes to try to avoid those
+//
+// Version 0.1
+//  - First stab it this, lots of issues - FAT binaries don't work at all
+//
 // Known issues:
-//  - Currently only works on a MACHO_32/_64 bit application, if it starts with
-//    a FAT file it will no do anything but parse the header
 //  - Needs optimized structures otherwise anything of a decent size will kill it
 //    (Related to an 010Editor template bug)
-//  - Needs lot of functionality to be fleshed out
 //
 
 // Mach-o's should be Little Endian only -- except for the fat_header/fat_archLittleEndian();
@@ -26,11 +35,15 @@ typedef enum <uint> {
 #define CPU_ARCH_MASK       0xff000000
 #define CPU_ARCH_ABI64      0x01000000
 
+// This looks ugly due to a limitation (bug?) in 010Editor template processing,
+// basically we're unable to define more constant using other constants - it doesn't
+// see them as already being processed when trying to define others (though it won't
+// error on this until it hits this when trying to access that constant)
 #define CPU_TYPE_X86        0x7
-#define CPU_TYPE_I386       CPU_TYPE_X86
-#define CPU_TYPE_X86_64     (CPU_TYPE_X86 | CPU_ARCH_ABI64)
+#define CPU_TYPE_I386       0x7 // CPU_TYPE_X86
+#define CPU_TYPE_X86_64     (0x7 | 0x01000000) // (CPU_TYPE_X86 | CPU_ARCH_ABI64)
 #define CPU_TYPE_POWERPC    0x12
-#define CPU_TYPE_POWERPC64  (CPU_TYPE_POWERPC | CPU_ARCH_ABI64)
+#define CPU_TYPE_POWERPC64  (0x12 | 0x01000000) // (CPU_TYPE_POWERPC | CPU_ARCH_ABI64)
 #define CPU_TYPE_ARM        0xC
 
 typedef enum <uint> {
@@ -215,11 +228,12 @@ typedef enum <uint> {
 } Flags;
 
 typedef struct {
-    uint32 cpu_type;
-    uint32 cpu_sub_type;
-    FileType file_type;
-    uint32 num_load_commands;
-    uint32 size_of_load_commands;
+    uint32 cpu_type <comment="CPU specifier", format=hex>;
+    // TODO : Extract out capabilities here
+    uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
+    uint32 file_offset  <comment="Offset of header in file">;
+    uint32 size  <comment="Size of object file">;
+    uint32 align  <comment="alignment as a power of two">;
 } Fat_Arch;
 
 typedef struct {
@@ -228,11 +242,13 @@ typedef struct {
     if(magic == MACHO_FAT || magic == MACHO_FAT_CIGAM) {
         // Need to switch to BigEndian!
         BigEndian();
-        uint32 number_fat_arch <comment="Number of fat_arch structs">;
-        Fat_Arch fat_arch[number_fat_arch];
+        uint32 fat_arch_size <comment="Number of fat_arch structs">;
+        Fat_Arch fat_arch[fat_arch_size];
+        // Switch back to LittleEndian for rest of parsing
+        LittleEndian();
     } else {
-        uint32 cpu_type <format=hex>;
-        uint32 cpu_sub_type <format=hex>;
+        uint32 cpu_type <comment="CPU specifier", format=hex>;
+        uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
         FileType file_type;
         uint32 num_load_commands;
         uint32 size_of_load_commands;
@@ -390,13 +406,8 @@ string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
 typedef struct {
     char section_name[16];
     char segment_name[16];
-    if(header.magic != MACHO_64) {
-        uint32 address <format=hex>;
-        uint32 size <format=hex>;
-    } else {
-        uint64 address <format=hex>;
-        uint64 size <format=hex>;
-    }
+    uint32 address <format=hex>;
+    uint32 size <format=hex>;
     uint32 offset;
     uint32 section_alignment;
     uint32 relocation_entry_offset;
@@ -405,6 +416,20 @@ typedef struct {
     uint32 reserved1;
     uint32 reserved2;
 } Section <optimize=false>;
+
+typedef struct {
+    char section_name[16];
+    char segment_name[16];
+    uint64 address <format=hex>;
+    uint64 size <format=hex>;
+    uint64 offset;
+    uint32 section_alignment;
+    uint32 relocation_entry_offset;
+    uint32 number_of_relocation_entries;
+    uint32 flags <format=hex>;
+    uint32 reserved1;
+    uint32 reserved2;
+} Section64 <optimize=false>;
 
 typedef uint vm_proc;
 
@@ -481,8 +506,11 @@ typedef struct {
     case LOAD_WEAK_DYLIB :
     case REEXPORT_DYLIB :
         LoadCommandString name;
+        // TODO : Pretty print this
         uint32 timestamp;
+        // TODO : Pretty print this
         uint32 current_version;
+        // TODO : Pretty print this
         uint32 compatibility_version;
 
         // Seek to the beginning of the LoadCommand
@@ -533,6 +561,7 @@ typedef struct {
         Uuid uuid;
         break;
     case VERSION_MIN_MAC_OSX :
+        // TODO : Pretty print this
         uint32 version;
         uint32 reserved;
         break;
@@ -544,10 +573,11 @@ typedef struct {
         break;
     case UNIX_THREAD :
     case THREAD :
-        switch(header.cpu_type) {
+        switch(cpu_typer) {
             case CPU_TYPE_X86 :
             case CPU_TYPE_I386 :
                 i386ThreadFlavor flavor;
+                // TODO : Pretty print this
                 uint32 count;
                 switch(flavor) {
                     case i386_THREAD_STATE :
@@ -559,6 +589,7 @@ typedef struct {
                 break;
             case CPU_TYPE_X86_64 :
                 x86ThreadFlavor flavor;
+                // TODO : Pretty print this
                 uint32 count;
                 switch(flavor) {
                     case x86_THREAD_STATE64 :
@@ -573,6 +604,7 @@ typedef struct {
             case CPU_TYPE_POWERPC :
             case CPU_TYPE_POWERPC64 :
                 PPCThreadFlavor flavor;
+                // TODO : Pretty print this
                 uint32 count;
                 switch(flavor) {
                     case PPC_THREAD_STATE :
@@ -657,14 +689,9 @@ typedef struct {
         // Then skip to the end of the command based on the command_size
         FSkip(command_size);
         break;
-    case ROUTINES :
-        if(header.magic != MACHO_64) {
-            uint64 init_address <comment="Address of initialization routine">;
-            uint64 init_module <comment="Index into module table that init routine is defined">;
-        } else {
-            uint32 init_address <comment="Address of initialization routine">;
-            uint32 init_module <comment="Index into module table that init routine is defined">;
-        }
+    case ROUTINES_64 :
+        uint64 init_address <comment="Address of initialization routine">;
+        uint64 init_module <comment="Index into module table that init routine is defined">;
         uint32 reversed_1;
         uint32 reversed_2;
         uint32 reversed_3;
@@ -672,7 +699,16 @@ typedef struct {
         uint32 reversed_5;
         uint32 reversed_6;
         break;
-
+    case ROUTINES :
+        uint32 init_address <comment="Address of initialization routine">;
+        uint32 init_module <comment="Index into module table that init routine is defined">;
+        uint32 reversed_1;
+        uint32 reversed_2;
+        uint32 reversed_3;
+        uint32 reversed_4;
+        uint32 reversed_5;
+        uint32 reversed_6;
+        break;
     case TWOLEVEL_HINTS :
         uint32 offset <comment="Offset into the hint table">;
         uint32 hints_size <comment="Number of hints inside the hints table">;
@@ -704,20 +740,33 @@ typedef struct {
         // Then skip to the end of the command based on the command_size
         FSkip(command_size);
         break;
-    default :
+    case SEGMENT_64 :
         char segment_name[16];
 
-        if(header.magic != MACHO_64) {
-            uint32 vm_address <format=hex>;
-            uint32 vm_size <format=hex>;
-            uint32 file_off;
-            uint32 file_size;
-        } else {
-            uint64 vm_address <format=hex>;
-            uint64 vm_size <format=hex>;
-            uint64 file_off;
-            uint64 file_size;
+        uint64 vm_address <format=hex>;
+        uint64 vm_size <format=hex>;
+        uint64 file_off;
+        uint64 file_size;
+
+        vm_proc maximum_protection <format=hex>;
+        vm_proc initial_protection <format=hex>;
+        uint32 number_of_sections;
+        // TODO : Fix this enum
+        SegmentFlags flags;
+
+        // Having this if statement will prevent warnings in 010Editor
+        if(number_of_sections > 0) {
+            Section64 section[number_of_sections];
         }
+        break;
+    case SEGMENT :
+        char segment_name[16];
+
+        uint32 vm_address <format=hex>;
+        uint32 vm_size <format=hex>;
+        uint32 file_off;
+        uint32 file_size;
+
         vm_proc maximum_protection <format=hex>;
         vm_proc initial_protection <format=hex>;
         uint32 number_of_sections;
@@ -728,6 +777,10 @@ typedef struct {
         if(number_of_sections > 0) {
             Section section[number_of_sections];
         }
+        break;
+    default :
+        Warning("Hit an unknown or unsupported load command : [%d]", command);
+        Exit(-1);
     }
 } LoadCommand <read=LoadCommandReader, optimize=false>;
 
@@ -736,8 +789,18 @@ string LoadCommandReader(LoadCommand &loadCommand) {
 }
 
 Header header <comment="Mach-o header information">;
+local uint32 cpu_typer;
 if(header.magic == MACHO_32 || header.magic == MACHO_64) {
+    cpu_typer = header.cpu_type;
+    // If we didn't find a FAT header, then just process the load commands
     LoadCommand loadCommand[header.num_load_commands];
 } else {
-    // Handle FAT stuff
+    // Otherwise we need to grab the new headers again
+    local int i;
+    for(i = 0; i < header.fat_arch_size; i++) {
+        FSeek(header.fat_arch[i].file_offset);
+        Header machHeader;
+        cpu_typer = machHeader.cpu_type;
+        LoadCommand loadCommand[machHeader.num_load_commands];
+    }
 }
