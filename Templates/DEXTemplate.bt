@@ -4,13 +4,19 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.2
+// Revision: 1.3
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
-
+// Version 1.3 (2013-2-7)
+//
+// FIXED:
+//  - Actually fixed the on-demand structs issue. Template appears to
+//    run much faster (previous update introduced bugs)
+//  - Properly configured the optimize=true|false flags for structs
+//
 // Version 1.2 (2012-12-17)
 //
 // FIXED:
@@ -534,16 +540,7 @@ typedef struct {
     uint opt_length <comment="Size of optimized data tables">;
     DEX_OPT_FLAGS flags <read=DexOptFlagsRead, comment="Flags">;
     uint checksum <comment="Alder32 checksum of dependency table and optimization table">;    
-} dexopt_header_item <size=readDexOptHeaderItem>;
-
-int readDexOptHeaderItem(dexopt_header_item &item) {
-    return 8 + // magic
-            8 + // dex offset + length
-            8 + // deps offset + length
-            8 + // opt offset + length
-            4 + // dex opt flags
-            4; // checksum
-}
+} dexopt_header_item <size=40>;
 
 string DexOptFlagsRead(DEX_OPT_FLAGS f) {
     string ret = "";
@@ -568,11 +565,7 @@ string DexOptFlagsRead(DEX_OPT_FLAGS f) {
 typedef struct {
     uleb128 utf16_size <comment="Size of string in UTF-16 code units">;
     string data <comment="A string in MUTF-8 format">;
-} string_item <size=readStringSize>;
-
-int readStringSize(string_item &item) {
-    return uleb128_value(startof(item)) + 3;
-}
+} string_item;
 
 typedef struct {
     uint string_data_off <comment="File offset of string data">;
@@ -583,7 +576,7 @@ typedef struct {
     string_item string_data <comment="String item">;
     
     FSeek(pos);
-} string_id_item <read=StringDataReader, optimize=false, size=4>;
+} string_id_item <read=StringDataReader, optimize=false>;
 
 string StringDataReader(string_id_item &i) {
     return i.string_data.data;
@@ -592,11 +585,7 @@ string StringDataReader(string_id_item &i) {
 typedef struct (int size) {
     local int s = size;
     string_id_item string_id[size] <comment="String ID">;
-} string_id_list <read=StringIDListRead, comment="String ID list", size=GetStringIdListSize>;
-
-int GetStringIdListSize(string_id_list &list) {
-    return ReadUInt(56) * 4;
-}
+} string_id_list <read=StringIDListRead, comment="String ID list">;
 
 string StringIDListRead(string_id_list &l) {
     string s;
@@ -610,7 +599,7 @@ string StringIDListRead(string_id_list &l) {
 
 typedef struct {
     uint descriptor_idx <read=StringIdRead, comment="String ID for this type descriptor">;
-} type_id_item <read=TypeIDRead, optimize=false, size=4>;
+} type_id_item <read=TypeIDRead, optimize=false>;
 
 string TypeIDRead(type_id_item &i) {
     return GetLongTypeDescriptor(GetStringById(i.descriptor_idx));
@@ -619,11 +608,7 @@ string TypeIDRead(type_id_item &i) {
 typedef struct (int size) {
     local int s = size;
     type_id_item type_id[size] <comment="Type ID">;
-} type_id_list <read=TypeIDListRead, size=GetTypeIdListSize>;
-
-int GetTypeIdListSize(type_id_list &list) {
-    return ReadUInt(64) * 4;
-}
+} type_id_list <read=TypeIDListRead, optimize=true>;
 
 string TypeIDListRead(type_id_list &l) {
     string s;
@@ -641,11 +626,7 @@ typedef struct {
 typedef struct {
     uint size <comment="Number of entries in type list">;
     type_item list[size] <read=TypeItemRead, comment="Type entry">;
-} type_item_list <read=TypeItemListRead, optimize=false, size=GetTypeItemList>;
-
-int GetTypeItemList(type_item_list &list) {
-    return list.s * 2;
-}
+} type_item_list <read=TypeItemListRead, optimize=true>;
 
 string TypeItemRead(type_item &t) {
     return GetTypeById(t.type_idx);
@@ -733,11 +714,7 @@ string ProtoIDItemRead(proto_id_item &i) {
 typedef struct (int size) {
     local int s = size;
     proto_id_item proto_id[size] <comment="Prototype ID">;
-} proto_id_list <read=ProtoIDListRead, size=GetProtoIdListSize>;
-
-int GetProtoIdListSize(proto_id_list &list) {
-    return ReadUInt(72) * 12;
-}
+} proto_id_list <read=ProtoIDListRead, optimize=true>;
 
 string ProtoIDListRead(proto_id_list &l) {
     string s;
@@ -790,11 +767,7 @@ string FieldIdItemRead(field_id_item &i) {
 typedef struct (int size) {
     local int s = size;
     field_id_item field_id[size] <comment="Field ID">;
-} field_id_list <read=FieldIDListRead, size=ReadFieldIdList>;
-
-int ReadFieldIdList(field_id_list &list) {
-    return ReadUInt(80) * 4;
-}
+} field_id_list <read=FieldIDListRead, optimize=true>;
 
 string FieldIDListRead(field_id_list &l) {
     string s;
@@ -832,11 +805,7 @@ string MethodIdItemRead(method_id_item &m) {
 typedef struct (int size) {
     local int s = size;
     method_id_item method_id[size] <comment="Method ID">;
-} method_id_list <read=MethodIDListRead, size=ReadMethodIdList>;
-
-int ReadMethodIdList(method_id_list &list) {
-    return ReadUInt(88) * 8;
-}
+} method_id_list <read=MethodIDListRead, optimize=true>;
 
 string MethodIDListRead(method_id_list &l) {
     string s;
@@ -860,7 +829,7 @@ typedef struct {
         
         FSeek(pos);       
     }
-} field_annotation <read=FieldAnnotationRead, optimize=false, size=8>;
+} field_annotation <read=FieldAnnotationRead, optimize=false>;
 
 string FieldAnnotationRead(field_annotation &f) {
     return GetFieldById(f.field_idx);
@@ -878,7 +847,7 @@ typedef struct {
         
         FSeek(pos);       
     }
-} method_annotation <read=MethodAnnotationRead, optimize=false, size=8>;
+} method_annotation <read=MethodAnnotationRead, optimize=false>;
 
 string MethodAnnotationRead(method_annotation &m) {
     return GetMethodById(m.method_idx);
@@ -896,7 +865,7 @@ typedef struct {
         
         FSeek(pos);       
     }
-} parameter_annotation <read=ParameterAnnotationRead, optimize=false, size=8>;
+} parameter_annotation <read=ParameterAnnotationRead, optimize=false>;
 
 string ParameterAnnotationRead(parameter_annotation &p) {
     return GetParameterListString(dex_proto_ids.proto_id[dex_method_ids.method_id[p.method_idx].proto_idx].parameters);
@@ -929,7 +898,7 @@ typedef struct {
         FSeek(pos);
     }
 
-} annotation_off_item <read=AnnotationOffItemRead, optimize=false, size=4>;
+} annotation_off_item <read=AnnotationOffItemRead, optimize=true, size=12>;
 
 string AnnotationOffItemRead(annotation_off_item &i) {
     if(exists(i.item)) {
@@ -943,11 +912,7 @@ typedef struct {
     if(size > 0) {
         annotation_off_item entries[size] <comment="Annotation entry elements">;
     }
-} annotation_set_item <read=AnnotationSetItemRead, optimize=false, size=ReadAnnotationSetItemSize>;
-
-int ReadAnnotationSetItemSize(annotation_set_item &item) {
-    return ReadUInt(startof(item)) * 4;
-}
+} annotation_set_item <read=AnnotationSetItemRead, optimize=false>;
 
 string AnnotationSetItemRead(annotation_set_item &i) {
     local string s;
@@ -981,7 +946,7 @@ typedef struct {
     if(parameters_size > 0) {
         parameter_annotation parameter_annotations[parameters_size] <comment="List of method parameter annotations">;    
     }
-} annotations_directory_item <read=AnnotationsDirectoryItemRead, optimize=false, size=12>;
+} annotations_directory_item <read=AnnotationsDirectoryItemRead, optimize=true, size=16>;
 
 string AnnotationsDirectoryItemRead(annotations_directory_item &i) {
     local string s; 
@@ -1006,7 +971,7 @@ typedef struct {
         
         FSeek(pos);       
     }
-} annotation_set_ref_item <optimize=false, size=4>;
+} annotation_set_ref_item <optimize=false>;
 
 typedef struct {
     uint size <comment="Number of entries in annotation list">;
@@ -1014,11 +979,7 @@ typedef struct {
     if(size > 0) {
        annotation_set_ref_item list[size] <comment="Annotation set elements">;
     }
-} annotation_set_ref_list <size=GetAnnotationSetRefList>;
-
-int GetAnnotationSetRefList(annotation_set_ref_list &list) {
-    return ReadUInt(startof(list)) * 4;
-}
+} annotation_set_ref_list;
 
 //////////////////////////////////////////////////
 // classes
@@ -1118,7 +1079,7 @@ typedef struct (int previd) {
 
     uleb128 field_idx_diff <comment="Field ID for this field, represented as the difference from the previous index">;
     uleb128 access_flags <read=AccessFlagsReadUleb, comment="Access flags">;
-} encoded_field <read=EncodedFieldRead, optimize=false, size=2>;
+} encoded_field <read=EncodedFieldRead, optimize=false>;
 
 string EncodedFieldRead(encoded_field &f) {
     local int realid = f.p + uleb128_value(f.field_idx_diff);
@@ -1134,7 +1095,7 @@ typedef struct (int size) {
         encoded_field field(fieldid) <comment="Encoded field">;
         fieldid = fieldid + uleb128_value(field.field_idx_diff);
     }
-} encoded_field_list <read=EncodedFieldListRead, size=6>;
+} encoded_field_list <read=EncodedFieldListRead>;
 
 string EncodedFieldListRead(encoded_field_list &l) {
     local string s;
@@ -1201,7 +1162,7 @@ typedef struct {
     if(uleb128_value(virtual_methods_size) > 0) {
         encoded_method_list virtual_methods(uleb128_value(virtual_methods_size)) <comment="Encoded sequence of virtual methods">;
     }
-} class_data_item <read=ClassDataItemRead, size=25>;
+} class_data_item <read=ClassDataItemRead>;
 
 string ClassDataItemRead(class_data_item &i) {
     local string s;
@@ -1275,11 +1236,7 @@ string InterfacesRead(type_item_list &l) {
 typedef struct (int size) {
     local int s = size;
     class_def_item class_def[size] <comment="Class ID">;
-} class_def_item_list <read=ClassDefItemListRead, size=GetClassDefItemListSize>;
-
-int GetClassDefItemListSize(class_def_item_list &list) {
-    return ReadUInt(96) * 32;
-}
+} class_def_item_list <read=ClassDefItemListRead>;
 
 string ClassDefItemListRead(class_def_item_list &l) {
     string s;
@@ -1308,12 +1265,7 @@ typedef struct {
         uleb128 catch_all_addr <comment="Address of catch-all handler">;
         numhandlers++;
     }
-} encoded_catch_handler <read=EncodedCatchHandlerRead, optimize=false, size=GetEncodedCatchHandlerSize>;
-
-int GetEncodedCatchHandlerSize(encoded_catch_handler &item) {
-    return 8 + // sleb128
-            sleb128_value(startof(item)) * 8;
-}
+} encoded_catch_handler <read=EncodedCatchHandlerRead, optimize=false>;
 
 string EncodedCatchHandlerRead(encoded_catch_handler &h) {
     local string s;
@@ -1324,11 +1276,7 @@ string EncodedCatchHandlerRead(encoded_catch_handler &h) {
 typedef struct {
     uleb128 size <comment="Number of handler lists">;
     encoded_catch_handler list[uleb128_value(size)] <comment="List of handler lists">;
-} encoded_catch_handler_list <read=EncodedCatchHandlerListRead, size=GetEncodedCatchHandlerListSize>;
-
-int GetEncodedCatchHandlerListSize(encoded_catch_handler_list &list) {
-    return 3 + sleb128_value(startof(list));
-}
+} encoded_catch_handler_list <read=EncodedCatchHandlerListRead>;
 
 string EncodedCatchHandlerListRead(encoded_catch_handler_list &l) {
     local string s;
@@ -1364,11 +1312,7 @@ typedef struct {
         try_item tries[tries_size] <comment="Array of code try block addresses">;
         encoded_catch_handler_list handlers <comment="Array of catch types and handler addresses">;
     }
-} code_item <read=CodeItemRead, size=ReadCodeItemSize>;
-
-int ReadCodeItemSize(code_item &item) {
-    return ReadUInt(startof(item) + 12) + 16;
-}
+} code_item <read=CodeItemRead>;
 
 string CodeItemRead(code_item &i) {
     local string s;
@@ -1380,7 +1324,7 @@ string CodeItemRead(code_item &i) {
 typedef struct {
     uleb128 type_idx <read=LongTypeIdReadUleb, comment="Type ID for the type of exception to catch">;
     uleb128 addr <comment="Bytecode address of exception handler">;
-} encoded_type_addr_pair <read=EncodedTypeAddrPairRead, optimize=false, size=6>;
+} encoded_type_addr_pair <read=EncodedTypeAddrPairRead, optimize=false>;
 
 string EncodedTypeAddrPairRead(encoded_type_addr_pair &p) {
     string s;
@@ -1483,7 +1427,7 @@ typedef struct {
             uleb128p1 name_idx <read=StringIdReadUlebp1, comment="String index of source file name">;
             SPrintf(args, "%s", StringIdReadUlebp1(name_idx));
     }
-} debug_opcode <read=DebugOpcodeRead, optimize=false, size=1>;
+} debug_opcode <read=DebugOpcodeRead, optimize=false>;
 
 #define DBG_FIRST_SPECIAL 0x0a
 #define DBG_LINE_BASE -4
@@ -1525,7 +1469,7 @@ typedef struct {
     ushort unused;
     uint size;
     uint offset;  
-} map_item <read=MapItemRead, size=12>;
+} map_item <read=MapItemRead, optimize=true, size=12>;
 
 string MapItemRead(map_item &m) {
     string s;
@@ -1536,11 +1480,7 @@ string MapItemRead(map_item &m) {
 typedef struct {
     uint size;
     map_item list[size];
-} map_list_type <read=MapListTypeRead, size=GetMapListTypeSize>;
-
-int GetMapListTypeSize(map_list_type &type) {
-    return ReadUInt(startof(type)) * 12 + 4;
-}
+} map_list_type <read=MapListTypeRead>;
 
 string MapListTypeRead(map_list_type &t) {
     local string s;
@@ -1710,7 +1650,7 @@ typedef struct {
     uint class_descriptor_hash <comment="Class descriptor hash code">; 
     int class_descriptor_offset <comment="File offset of class descriptor">;
     int class_definition_offset <comment="File offset of class definition">; 
-} dex_class_lookup_entry <read=DexClassLookupEntryRead, optimize=false>;
+} dex_class_lookup_entry <read=DexClassLookupEntryRead, optimize=false, size=12>;
 
 string DexClassLookupEntryRead(dex_class_lookup_entry &e) {
     local string s;
