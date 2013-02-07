@@ -8,7 +8,8 @@
 //--------------------------------------
 //
 // Version 1.1
-//  - minimum version load command now properly outputs the format for better readability
+//  - Minimum version load command now properly outputs the format for better readability
+//  - Added a readvalue function for the header, helps understand headers at a glance
 //
 // Version 1.0
 //  - Correctly parses FAT headers and will continue to parse the rest of the combined
@@ -260,7 +261,26 @@ typedef struct {
     if(magic == MACHO_64) {
         uint32 reserved;
     }
-} Header;
+} Header <read=HeaderRead>;
+
+string HeaderRead(Header &header) {
+    local string header_string;
+    switch(header.magic) {
+        case MACHO_FAT :
+        case MACHO_FAT_CIGAM :
+            header_string = "FAT header";
+            break;
+        case MACHO_32 :
+            header_string = "32bit Mach-O header";
+            break;
+        case MACHO_64 :
+            header_string = "64bit Mach-O header";
+            break;
+        default :
+            header_string = "Unknown header!";
+    }
+    return header_string;
+}
 
 #define REQ_DYLD (0x80000000)
 
@@ -510,7 +530,7 @@ string VersionRead(Version &version) {
         SPrintf(version_string, "%u.%u.%u", version.version >> 16, (version.version >> 8) & 0xFF, version.version & 0xFF);
     }
     return version_string;
-};
+}
 
 typedef struct {
     //LoadCommandHead loadCommandHead <comment="Load command type and size">;
