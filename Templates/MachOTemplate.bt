@@ -3,9 +3,12 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.0
+// Revision: 1.1
 // Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
+//
+// Version 1.1
+//  - minimum version load command now properly outputs the format for better readability
 //
 // Version 1.0
 //  - Correctly parses FAT headers and will continue to parse the rest of the combined
@@ -495,6 +498,21 @@ string UuidRead(Uuid uuid) {
 }
 
 typedef struct {
+    uint32 version;
+} Version <read=VersionRead>;
+
+string VersionRead(Version &version) {
+    local string version_string;
+    if(version.version & 0xFF == 0) {
+        SPrintf(version_string, "%u.%u", version.version >> 16, (version.version >> 8) & 0xFF);
+    } else {
+
+        SPrintf(version_string, "%u.%u.%u", version.version >> 16, (version.version >> 8) & 0xFF, version.version & 0xFF);
+    }
+    return version_string;
+};
+
+typedef struct {
     //LoadCommandHead loadCommandHead <comment="Load command type and size">;
     LoadCommandType command;
     uint command_size;
@@ -561,9 +579,10 @@ typedef struct {
         Uuid uuid;
         break;
     case VERSION_MIN_MAC_OSX :
+    case VERSION_MIN_IPHONE_OS :
         // TODO : Pretty print this
-        uint32 version;
-        uint32 reserved;
+        Version version;
+        uint32 reserved <comment="Should be zero">;
         break;
     case FUNCTION_STARTS :
     case CODE_SIGNATURE :
