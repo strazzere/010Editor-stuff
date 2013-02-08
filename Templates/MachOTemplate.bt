@@ -10,6 +10,8 @@
 // Version 1.2 (2013-02-08)
 //  - Fixed LoadCommand for ARM thread handling
 //  - Added LoadCommand handling for DATA_IN_CODE
+//  - Finished optimization true|false categorization for structs, also did size optimzations
+//    so the template should run faster
 //
 // Version 1.1 (2013-02-07)
 //  - Minimum version load command now properly outputs the format for better readability
@@ -26,9 +28,6 @@
 // Version 0.1 (2013-02-05)
 //  - First stab it this, lots of issues - FAT binaries don't work at all
 //
-// Known issues:
-//  - Needs optimized structures otherwise anything of a decent size will kill it
-//    (Related to an 010Editor template bug)
 //
 
 // Mach-o's should be Little Endian only -- except for the fat_header/fat_archLittleEndian();
@@ -91,7 +90,7 @@ typedef struct {
     uint32 es <format=hex>;
     uint32 fs <format=hex>;
     uint32 gs <format=hex>;
-} i386ThreadState;
+} i386ThreadState <optimize=true, size=64>;
 
 typedef enum <uint> {
     x86_THREAD_STATE32      = 0x1,
@@ -131,7 +130,7 @@ typedef struct {
     uint64 cs <format=hex>;
     uint64 fs <format=hex>;
     uint64 gs <format=hex>;
-} x86ThreadState;
+} x86ThreadState <optimize=true, size=168>;
 
 typedef enum <uint> {
     PPC_THREAD_STATE        = 0x1,
@@ -160,7 +159,7 @@ typedef struct {
     uint32 r14 <format=hex>;
     uint32 r15 <format=hex>;
     uint32 r16 <format=hex>;
-} ARMThreadState;
+} ARMThreadState <optimize=true, size=68>;
 
 typedef enum {
     ARM_THREAD_STATE  = 0x1
@@ -209,7 +208,7 @@ typedef struct {
     uint32 __mq <comment="MQ Register (601 only)">;
 
     uint32 __vrsave <comment="Vector save register">;
-} PPCThreadState;
+} PPCThreadState <optimize=true, size=160>;
 
 typedef enum <uint> {
     MACH_NOUNDEFS                   = 0x1,
@@ -246,7 +245,7 @@ typedef struct {
     uint32 file_offset  <comment="Offset of header in file">;
     uint32 size  <comment="Size of object file">;
     uint32 align  <comment="alignment as a power of two">;
-} Fat_Arch;
+} Fat_Arch <optimize=true>;
 
 typedef struct {
     Magic magic <comment="Magic bytes for the file">;
@@ -269,7 +268,7 @@ typedef struct {
     if(magic == MACHO_64) {
         uint32 reserved;
     }
-} Header <read=HeaderRead>;
+} Header <read=HeaderRead, optimize=false>;
 
 string HeaderRead(Header &header) {
     local string header_string;
@@ -446,7 +445,7 @@ typedef struct {
     uint32 flags <format=hex>;
     uint32 reserved1;
     uint32 reserved2;
-} Section <optimize=false>;
+} Section <optimize=false, size=68>;
 
 typedef struct {
     char section_name[16];
@@ -460,9 +459,9 @@ typedef struct {
     uint32 flags <format=hex>;
     uint32 reserved1;
     uint32 reserved2;
-} Section64 <optimize=false>;
+} Section64 <optimize=false, size=80>;
 
-typedef uint vm_proc;
+typedef uint32 vm_proc;
 
 typedef enum <uint> {
     HIGH_VM                 = 0x1,
@@ -481,7 +480,7 @@ typedef struct {
     string string_data <comment="Load command string">;
     
     FSeek(pos);
-} LoadCommandString <read=LoadCommandStringRead>;
+} LoadCommandString <read=LoadCommandStringRead, optimize=false>;
 
 string LoadCommandStringRead(LoadCommandString &loadCommandString) {
     return loadCommandString.string_data;
@@ -527,7 +526,7 @@ string UuidRead(Uuid uuid) {
 
 typedef struct {
     uint32 version;
-} Version <read=VersionRead>;
+} Version <read=VersionRead, optimize=true, size=4>;
 
 string VersionRead(Version &version) {
     local string version_string;
@@ -541,9 +540,9 @@ string VersionRead(Version &version) {
 }
 
 typedef struct {
-    //LoadCommandHead loadCommandHead <comment="Load command type and size">;
+    // These two belong to every type of command
     LoadCommandType command;
-    uint command_size;
+    uint32 command_size;
 
     // Process rest of load command based on command type
     switch(command) {
@@ -679,7 +678,6 @@ typedef struct {
         uint32 minor_version <comment="Library's minor version number">;
         uint32 header_address <comment="Library's header address">;
 
-//        Reposition(command_size, sizeof(uint32) * 5);
         // Seek to the beginning of the LoadCommand
         FSeek(FTell() - (sizeof(uint32) * 5));
         // Then skip to the end of the command based on the command_size
@@ -829,12 +827,17 @@ typedef struct {
         Warning("Hit an unknown or unsupported load command : [%d]", command);
         Exit(-1);
     }
-} LoadCommand <read=LoadCommandReader, optimize=false>;
+} LoadCommand <read=LoadCommandReader, optimize=false, size=readLoadCommandSize>;
+
+int readLoadCommandSize(LoadCommand &loadCommand) {
+    return ReadUInt(startof(loadCommand) + 4);
+}
 
 string LoadCommandReader(LoadCommand &loadCommand) {
     return LoadCommandTypeRead(loadCommand.command) + " load command";
 }
 
+// Main part of template, kicking off the rest of the structures, etc.
 Header header <comment="Mach-o header information">;
 local uint32 cpu_typer;
 if(header.magic == MACHO_32 || header.magic == MACHO_64) {
