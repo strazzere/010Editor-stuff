@@ -13,6 +13,7 @@
 //  - Finished optimization true|false categorization for structs, also did size optimzations
 //    so the template should run faster
 //  - Removed some TODO's related to pretty-printing stuff
+//  - Grouped the LoadCommands together in lists for easier use
 //
 // Version 1.1 (2013-02-07)
 //  - Minimum version load command now properly outputs the format for better readability
@@ -825,14 +826,25 @@ typedef struct {
         Warning("Hit an unknown or unsupported load command : [%d]", command);
         Exit(-1);
     }
-} LoadCommand <read=LoadCommandReader, optimize=false, size=readLoadCommandSize>;
+} LoadCommand <read=LoadCommandReader, optimize=false, size=LoadCommandSizeReader>;
 
-int readLoadCommandSize(LoadCommand &loadCommand) {
+int LoadCommandSizeReader(LoadCommand &loadCommand) {
     return ReadUInt(startof(loadCommand) + 4);
 }
 
 string LoadCommandReader(LoadCommand &loadCommand) {
     return LoadCommandTypeRead(loadCommand.command) + " load command";
+}
+
+typedef struct(int size_of_list) {
+    local int list_size = size_of_list;
+    LoadCommand loadCommand[size_of_list];
+} LoadCommandList <optimize=false, read=LoadCommandListReader, comment="LoadCommand list">;
+
+string LoadCommandListReader(LoadCommandList &loadCommandList) {
+    local string s;
+    s = SPrintf(s, "%d load commands", loadCommandList.list_size);
+    return s;
 }
 
 // Main part of template, kicking off the rest of the structures, etc.
@@ -841,7 +853,7 @@ local uint32 cpu_typer;
 if(header.magic == MACHO_32 || header.magic == MACHO_64) {
     cpu_typer = header.cpu_type;
     // If we didn't find a FAT header, then just process the load commands
-    LoadCommand loadCommand[header.num_load_commands];
+    LoadCommandList loadCommandList(header.num_load_commands);
 } else {
     // Otherwise we need to grab the new headers again
     local int i;
@@ -849,6 +861,6 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
         FSeek(header.fat_arch[i].file_offset);
         Header machHeader;
         cpu_typer = machHeader.cpu_type;
-        LoadCommand loadCommand[machHeader.num_load_commands];
+        LoadCommandList loadCommandList(machHeader.num_load_commands);
     }
 }
