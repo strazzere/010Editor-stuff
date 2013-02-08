@@ -155,10 +155,10 @@ typedef struct {
     uint32 r10 <format=hex>;
     uint32 r11 <format=hex>;
     uint32 r12 <format=hex>;
-    uint32 r13 <format=hex>;
-    uint32 r14 <format=hex>;
-    uint32 r15 <format=hex>;
-    uint32 r16 <format=hex>;
+    uint32 sp <format=hex>;
+    uint32 lr <format=hex>;
+    uint32 pc <format=hex>;
+    uint32 cpsr <format=hex>;
 } ARMThreadState <optimize=true, size=68>;
 
 typedef enum {
