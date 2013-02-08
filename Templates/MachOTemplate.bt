@@ -3,15 +3,19 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.1
+// Revision: 1.2
 // Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
 //
-// Version 1.1
+// Version 1.2 (2013-02-08)
+//  - Fixed LoadCommand for ARM thread handling
+//  - Added LoadCommand handling for DATA_IN_CODE
+//
+// Version 1.1 (2013-02-07)
 //  - Minimum version load command now properly outputs the format for better readability
 //  - Added a readvalue function for the header, helps understand headers at a glance
 //
-// Version 1.0
+// Version 1.0 (2013-02-06)
 //  - Correctly parses FAT headers and will continue to parse the rest of the combined
 //    binary
 //  - Added many todo's to make the output more pretty
@@ -19,7 +23,7 @@
 //    LoadCommand is hit
 //  - Found some bugs in 010Editor and added fixes to try to avoid those
 //
-// Version 0.1
+// Version 0.1 (2013-02-05)
 //  - First stab it this, lots of issues - FAT binaries don't work at all
 //
 // Known issues:
@@ -157,6 +161,10 @@ typedef struct {
     uint32 r15 <format=hex>;
     uint32 r16 <format=hex>;
 } ARMThreadState;
+
+typedef enum {
+    ARM_THREAD_STATE  = 0x1
+} ARMThreadFlavor <format=hex>;
 
 typedef struct {
     uint32 __srr0 <comment="Instruction address register (PC)">;
@@ -604,6 +612,7 @@ typedef struct {
         Version version;
         uint32 reserved <comment="Should be zero">;
         break;
+    case DATA_IN_CODE :
     case FUNCTION_STARTS :
     case CODE_SIGNATURE :
     case SEGMENT_SPLIT_INFO:
@@ -658,9 +667,8 @@ typedef struct {
                 }
                 break;
             case CPU_TYPE_ARM :
-                // TODO: Unsure if this is correct ?
-//                uint32 flavor;
-//                uint32 count;
+                ARMThreadFlavor flavor;
+                uint32 count;
                 ARMThreadState threadState;
                 break;
         }
