@@ -12,6 +12,7 @@
 //  - Added LoadCommand handling for DATA_IN_CODE
 //  - Finished optimization true|false categorization for structs, also did size optimzations
 //    so the template should run faster
+//  - Removed some TODO's related to pretty-printing stuff
 //
 // Version 1.1 (2013-02-07)
 //  - Minimum version load command now properly outputs the format for better readability
@@ -553,10 +554,8 @@ typedef struct {
         LoadCommandString name;
         // TODO : Pretty print this
         uint32 timestamp;
-        // TODO : Pretty print this
-        uint32 current_version;
-        // TODO : Pretty print this
-        uint32 compatibility_version;
+        Version current_version;
+        Version compatibility_version;
 
         // Seek to the beginning of the LoadCommand
         FSeek(FTell() - (sizeof(uint32) * 6));
@@ -607,7 +606,6 @@ typedef struct {
         break;
     case VERSION_MIN_MAC_OSX :
     case VERSION_MIN_IPHONE_OS :
-        // TODO : Pretty print this
         Version version;
         uint32 reserved <comment="Should be zero">;
         break;
