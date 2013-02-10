@@ -14,6 +14,7 @@
 //    so the template should run faster
 //  - Removed some TODO's related to pretty-printing stuff
 //  - Grouped the LoadCommands together in lists for easier use
+//  - Added enum for known CryptId in the EncryptionInfo LoadCommand
 //
 // Version 1.1 (2013-02-07)
 //  - Minimum version load command now properly outputs the format for better readability
@@ -166,6 +167,12 @@ typedef struct {
 typedef enum {
     ARM_THREAD_STATE  = 0x1
 } ARMThreadFlavor <format=hex>;
+
+typedef enum {
+    NOT_ENCRYPTED       = 0x0,
+    COM_APPLE_UNFREE    = 0x1,
+    COM_APPLE_NULL      = 0x10
+} CryptId <format=hex>;
 
 typedef struct {
     uint32 __srr0 <comment="Instruction address register (PC)">;
@@ -771,7 +778,7 @@ typedef struct {
     case ENCRYPTION_INFO :
         uint32 crypt_offset <comment="File offset of encrypted range">;
         uint32 crypt_size <comment="File size of the encrypted range">;
-        uint32 crypt_id <comment="Which encryption system, 0 means not-encrypted yet">;
+        CryptId crypt_id <comment="Which encryption system, 0 means not-encrypted yet">;
         break;
     case IDENT :
         break;
@@ -789,7 +796,7 @@ typedef struct {
 
         uint64 vm_address <format=hex>;
         uint64 vm_size <format=hex>;
-        uint64 file_off;
+        uint64 file_offset;
         uint64 file_size;
 
         vm_proc maximum_protection <format=hex>;
@@ -808,7 +815,7 @@ typedef struct {
 
         uint32 vm_address <format=hex>;
         uint32 vm_size <format=hex>;
-        uint32 file_off;
+        uint32 file_offset;
         uint32 file_size;
 
         vm_proc maximum_protection <format=hex>;
