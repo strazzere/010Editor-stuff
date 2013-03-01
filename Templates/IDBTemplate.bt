@@ -1,0 +1,51 @@
+//--------------------------------------
+//--- 010 Editor v3.2.2 Binary Template
+//
+// File:     IDBTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose:  Quick template for parsing Macho-o binaries, probably doesn't fully work, just wip
+//--------------------------------------
+
+// TODO: Pretty printer for this
+typedef enum {
+    IDA0 = 0x49444130,
+    IDA1 = 0x49444131,
+    IDA2 = 0x49444132,
+} Magic;
+
+typedef enum {
+    NORMAL = 0xAABBCCDD,
+    LAMRON = 0xDDCCBBAA
+} Foothold <format=hex>;
+
+typedef struct {
+    uint32 data_size;
+    byte padding[5];
+} SubFile;
+
+typedef struct {
+    Magic magic <comment="Magic bytes for IDB file", format=hex>;
+    byte padding[2];
+    ubyte id0_offset <format=hex>;
+    byte padding_2[7];
+    uint32 id1_offset <format=hex>;
+    byte padding_3[8];
+    Foothold foothold;
+    byte unknown[2];
+    uint32 nam_offset <format=hex>;
+    byte padding_4[12];
+    uint32 til_offset <format=hex>;
+    byte padding_5[4];
+    uint32 other_offset <format=hex>;
+} Header;
+
+Header header;
+FSeek(header.id0_offset);
+SubFile id0;
+FSeek(header.id1_offset);
+SubFile id1;
+FSeek(header.nam_offset);
+SubFile nam;
+FSeek(header.til_offset);
+SubFile til;
