@@ -4,7 +4,7 @@
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
 // Revision: 1.2
-// Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
+// Purpose:  Quick template for parsing Mach-o binaries, pretty much fully working!
 //--------------------------------------
 //
 // Version 1.2 (2013-02-08)
