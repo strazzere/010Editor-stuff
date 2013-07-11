@@ -1,15 +1,15 @@
 //--------------------------------------
 //--- 010 Editor v4.0.1 Script File
 //
-// File:        CopyAsRubyHexSequence
+// File:        CopyAsJavaByteArrayHexSequence
 // Author:      Tim "diff" Strazzere - diff@lookout.com
 // Revision:    1.0
 // Purpose:     Copies the selection to the clipboard as
 //              hex bytes without any spaces; opposed to the
 //              default with spaces and newlines. Adds the
-//		"\x" infront of the bytes for easy use in shell
-//		commands or ruby code
-//              
+//		        byte[] definition and (byte) for use in java
+//              code"\x"
+//
 //              Lots of this is just modified version of
 //              CopyAsCpp.1sc
 //--------------------------------------
@@ -33,10 +33,15 @@ origfile = GetFileNum();
 newfile = FileNew();
 FileSelect(origfile);
 
+FPrintf( newfile, "byte[] array_data = { " );
 // Write out the bytes from start/size determined above
 for(i = 0; i < size; i++) {
-    FPrintf( newfile, "\\x%02X", (int)ReadUByte(start+i));
+    FPrintf( newfile, "(byte) 0x%02X", (int)ReadUByte(start+i));
+    if(i+1 < size) {
+        FPrintf( newfile, ", " );
+    }
 }
+FPrintf( newfile, " };" );
 
 // Copy to clipboard and kill the temp file
 FileSelect(newfile);
