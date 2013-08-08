@@ -12,6 +12,8 @@
 //           - https://github.com/android/platform_system_core/blob/master/mkbootimg/bootimg.h
 //--------------------------------------
 
+#define PAGE_SIZE (0x800)
+
 // utility type to show the SHA1 hash in the value column
 typedef ubyte SHA1[20] <read=SHA1Read, format=hex>;
 
@@ -51,4 +53,28 @@ typedef struct {
     SHA1 id <comment="Seems to be a SHA1">;
 } Android_zImage_header;
 
+// This should always be one page
 Android_zImage_header bootImage;
+// Skip to the end of the page
+FSkip(PAGE_SIZE - FTell());
+
+// Ensure we get the padded page at the end
+local int pages = pages = bootImage.kernel_size / PAGE_SIZE;
+if(bootImage.kernel_size % PAGE_SIZE) {
+    pages = pages + 1;
+}
+ubyte kernel[pages * PAGE_SIZE];
+
+// Ensure we get the padded page at the end
+pages = bootImage.ramdisk_size / PAGE_SIZE;
+if(bootImage.ramdisk_size % PAGE_SIZE) {
+    pages = pages + 1;
+}
+ubyte ramdisk[pages * PAGE_SIZE];
+
+// Ensure we get the padded page at the end
+pages = bootImage.second_size / PAGE_SIZE;
+if(bootImage.second_size % PAGE_SIZE) {
+    pages = pages + 1;
+}
+ubyte second[pages * PAGE_SIZE];
