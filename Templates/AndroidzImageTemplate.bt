@@ -1,0 +1,54 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Binary Template
+//
+// File:     AndroidzImageTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose:  Quick template for parsing Android boot/recovery (zImage) images, just wip
+//
+//           Most (if not all) research stolen from;
+//           - https://github.com/we3des/psychic-octo-robot/wiki/Android-boot.img-zImage-format
+//           Which is pulled mostly from;
+//           - https://github.com/android/platform_system_core/blob/master/mkbootimg/bootimg.h
+//--------------------------------------
+
+// utility type to show the SHA1 hash in the value column
+typedef ubyte SHA1[20] <read=SHA1Read, format=hex>;
+
+string SHA1Read(SHA1 sig) {
+    string ret;
+    string tmp;
+    int i;
+
+    for(i = 0; i<20; i++) {
+        SPrintf(tmp, "%.2X", sig[i]);
+        ret += tmp;
+    }
+
+    return ret;
+}
+
+typedef struct {
+    char magic[8] <comment="Magic bytes that the file command should use">;
+    uint kernel_size;
+    uint kernel_address <format=hex, comment="Default is 0x10008000. Whatever number you type is added to 0x00008000">;
+
+    uint ramdisk_size;
+    uint ramdisk_address <format=hex, comment="Default is 0x11000000. base address + 0x01000000">;
+
+    uint second_size;
+    uint second_address <format=hex, comment="Default is 0x10F00000. base address + 0x00F00000">;
+
+    uint tag_address <format=hex, comment="Default is 0x10000100. base address + 0x00000100">;
+
+    uint page_size <comment="2048 is the default. 2048 and 4096 are the only values accepted by mkbootimg">;
+
+    ubyte unused[8] <comment="Reversed for future expansion">;
+
+    char name[16] <comment="Boot Image name">;
+    char cmd_line[512] <comment="Kernel command line">;
+
+    SHA1 id <comment="Seems to be a SHA1">;
+} Android_zImage_header;
+
+Android_zImage_header bootImage;
