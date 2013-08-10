@@ -50,6 +50,10 @@ typedef struct {
     char name[16] <comment="Boot Image name">;
     char cmd_line[512] <comment="Kernel command line">;
 
+    // Comments from bootimg.h claim this field is; "timestamp / checksum / sha1 / etc"
+    // However the actual usage in mkbootimg.c only appears to be the sha1 of
+    // the kernel data, ramdisk data and second data section
+    //  - https://github.com/android/platform_system_core/blob/master/mkbootimg/mkbootimg.c#L237
     SHA1 id <comment="Seems to be a SHA1">;
 } Android_zImage_header;
 
