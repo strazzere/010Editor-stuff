@@ -4,12 +4,19 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.3
+// Revision: 1.4
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.4 (2013-8-12)
+//
+// FIXED:
+//  - Fixed linked section to only color if section is not null or zero
+//  - Color the header_size to red if not expected 0x70 size, indicated
+//    "big ego"/section stuffer attack
+//
 // Version 1.3 (2013-2-7)
 //
 // FIXED:
@@ -469,10 +476,15 @@ typedef struct {
     SHA1 signature <comment="SHA-1 signature of rest of file">;
     uint file_size <comment="File size in bytes">;
 
+    if(ReadUInt(FTell()) != 0x70) {
+        SetBackColor(cLtRed);
+    }
     uint header_size <comment="Header size in bytes">;
     if(header_size > 0x70) {
         Warning("Header size appears be to larger than expected");
     }
+    // Ensure we reset color to not bleed
+    SetBackColor(cLtGreen);
 
     uint endian_tag <format=hex, comment="Endianness tag">;
 
@@ -481,13 +493,15 @@ typedef struct {
         Warning("Invalid endian_tag %.8X, should be %.8X", endian_tag, ENDIAN_CONSTANT);
     }
 
-
-    SetBackColor(cLtRed);
+    if(ReadUInt(FTell()) != 0 && ReadUInt(FTell() + 4) != 0) {
+        SetBackColor(cLtRed);
+    }
     uint link_size <comment="Size of link section">;
     uint link_off <comment="File offset of link section">;
     if(link_size != 0 || link_off != 0) {
         Warning("A link section appears to be set, this is not supported");
     }
+    // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
 
     uint map_off <comment="File offset of map list">;
