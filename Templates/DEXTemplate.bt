@@ -1,15 +1,23 @@
 //--------------------------------------
-//--- 010 Editor v3.1.3 Binary Template
+//--- 010 Editor v3.1.3 - v5.0beta2 Binary Template
 //
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.4
+// Revision: 1.5
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.5 (2013-9-12)
+//
+// FIXED:
+//  - Added a warning and (red) color change to the following header fields;
+//      - file size vs expected file size
+//      - SHA1 from header vs actual SHA1
+//      - Alder32 checksum from header vs actual checksum
+//
 // Version 1.4 (2013-8-12)
 //
 // FIXED:
@@ -472,9 +480,53 @@ string EncodedAnnotationRead(encoded_annotation &a) {
 
 typedef struct {
     dex_magic magic <comment="Magic value">; 
+
+    // Temp variable for expected file_length
+    local uint temp_expected_file_size = ReadUInt(32);
+    // If the size is less than the actual file - lets just set it to be filesize and let other
+    // things fail nicely than hit out of bound errors
+    if(temp_expected_file_size > FileSize()) {
+        temp_expected_file_size = FileSize();
+    }
+
+    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, 12, temp_expected_file_size - 12, -1, -1);
+    if(temp_checksum != ReadUInt(FTell())) {
+        SetBackColor(cLtRed);
+        Warning("Alder32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+    }
     uint checksum <format=hex, comment="Alder32 checksum of rest of file">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cLtGreen);
+
+    // Preemptively read the sha1 in for comparison
+    local string temp_expected_sha1, temp_char;
+    local int i;
+    for(i = 0; i < 20; i++) {
+        SPrintf(temp_char, "%.2X", ReadUByte(FTell()+i));
+        temp_expected_sha1 += temp_char;
+    }
+    local string temp_prepared_sha1 = "";
+    ChecksumAlgStr(CHECKSUM_SHA1, temp_prepared_sha1, 32, temp_expected_file_size- 32, "", -1, -1);
+    if(temp_expected_sha1 != temp_prepared_sha1) {
+        SetBackColor(cLtRed);
+        Warning("Sha1 checksum did not match, expected %s but got %s", temp_expected_sha1, temp_prepared_sha1);
+    }
     SHA1 signature <comment="SHA-1 signature of rest of file">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cLtGreen);
+
+    if(ReadUInt(FTell()) != FileSize()) {
+        SetBackColor(cLtRed);
+    }
     uint file_size <comment="File size in bytes">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cLtGreen);
+    if(file_size > FileSize()) {
+        Warning("File size appears be to smaller than expected - invalid dex file");
+    } else if(file_size < FileSize()) {
+        // This could still technically be a valid dex file according to code paths in the verifier
+        Warning("File size appears be to larger than expected");
+    }
 
     if(ReadUInt(FTell()) != 0x70) {
         SetBackColor(cLtRed);
