@@ -1,0 +1,80 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Script File
+// File: FixDexChecksums.1sc
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose: A script to fix the dalvik-executible checksums so it
+//          will pass DexSwapVerifier.cpp. It will just reset the
+//          SHA1 and Adler32 checksums.
+//--------------------------------------
+
+// Hack since 010Editor can't do casting...
+ubyte Atox(char character) {
+	switch (character)
+	{
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            return character - 48;
+            break;
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+            return character - 55;
+            break;
+        default:
+            return -1;
+            break;
+    }
+}
+
+
+if(ReadUByte(0) != 0x64 && ReadUByte(1) != 0x65 && ReadUByte(2) != 0x78) {
+    return "Doesn't appear to be a DEX file - quiting!\n";
+}
+
+// Attempt to read the expected file size from the header
+uint expected_file_size = ReadUInt(32);
+// If the size is less than the actual file - lets just set it to be filesize and let other
+// things fail nicely than hit out of bound errors
+if(expected_file_size > FileSize()) {
+    expected_file_size = FileSize();
+    Warning("Expected file size appears to be larger than the file size, will attempt to just use file size");
+}
+
+// Preemptively read the sha1 in for comparison
+string expected_sha1, temp_char, prepared_sha1;
+int i;
+for(i = 0; i < 20; i++) {
+    SPrintf(temp_char, "%.2X", ReadUByte(12+i));
+    expected_sha1 += temp_char;
+}
+ChecksumAlgStr(CHECKSUM_SHA1, prepared_sha1, 32, expected_file_size- 32, "", -1, -1);
+if(expected_sha1 != prepared_sha1) {
+    Printf("Sha1 checksum did not match, expected [ %s ] but got [ %s ] -- fixing!\n", expected_sha1, prepared_sha1);
+    for(i = 0; i < sizeof(prepared_sha1) / 2; i++){
+        WriteUByte(12+i, (Atox(prepared_sha1[i*2]) << 4) + Atox(prepared_sha1[i*2+1]));
+    }
+} else {
+    Printf("Sha1 checksum appears to be correct!\n");
+}
+
+uint adler32_checksum = Checksum(CHECKSUM_ADLER32, 12, expected_file_size - 12, -1, -1);
+if(adler32_checksum != ReadUInt(8)) {
+    Printf("Computed Adler32 checksum [ %08X ] differs from expected checksum [ %08X ] -- fixing!\n", adler32_checksum, ReadUInt(8));
+    WriteUInt(8, adler32_checksum);
+} else {
+    Printf("Adler32 checksum appears correct!\n");
+}
+
+return "Successfully executed!";
