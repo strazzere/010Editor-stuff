@@ -570,7 +570,8 @@ typedef struct {
 
     if(endian_tag != ENDIAN_CONSTANT) {
         // XXX we don't handle big endian files
-        PrintWarning("Invalid endian_tag %.8X, should be %.8X", endian_tag, ENDIAN_CONSTANT);
+        SPrintf(temp_warning, "Invalid endian_tag %.8X, should be %.8X", endian_tag, ENDIAN_CONSTANT);
+        PrintWarning(temp_warning);
     }
 
     if(ReadUInt(FTell()) != 0 && ReadUInt(FTell() + 4) != 0) {
