@@ -4,12 +4,22 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.5
+// Revision: 1.6
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.6 (2013-9-13)
+//
+// FIXED:
+//  - Warnings where not being output to the "output" box and only being
+//    displayed in the status box, so I wrote a small wrapper hack to make
+//    this data display in both places since more than one warning is likely
+//    to occur at a time. This will prompt you at the end to check the output
+//    box to see what actually went wrong, opposed to only see the last thing
+//    that went wrong. (Normally you want to see the first thing that broke!)
+//
 // Version 1.5 (2013-9-12)
 //
 // FIXED:
@@ -78,6 +88,21 @@ local int odexpad = 0;
 // utility type to show the SHA1 hash in the value column
 typedef ubyte SHA1[20] <read=SHA1Read, format=hex>;
 
+local int warnings = 0;
+local string temp_warning;
+
+// A hack to get warning messages to both "Warn" (show in status) and output to the "output" window
+void PrintWarning(string message) {
+    Warning(temp_warning);
+
+    // Ensure new-line, "Warning" statuses should not have them
+    SPrintf(temp_warning, "%s\n", message);
+    Printf(temp_warning);
+
+    // Hack to trigger a more generic "look at warnings in output"
+    warnings++;
+}
+
 string SHA1Read(SHA1 sig) {
     string ret;
     string tmp;
@@ -103,7 +128,7 @@ typedef struct {
         newline != '\n' ||
         zero != 0) {
 
-        Warning("Invalid DEX file");
+        PrintWarning("Invalid DEX file");
         return -1;
     }
 } dex_magic <read=DexMagicRead, size=8>;
@@ -406,7 +431,8 @@ typedef struct {
             }
             break;
         default:
-            Warning("Unknown type for encoded value 0x%X", value_type);
+            SPrintf(temp_warning, "Unknown type for encoded value 0x%X", value_type);
+            PrintWarning(temp_warning);
             break;
     }
 } encoded_value <read=EncodedValueStructRead, optimize=false>;
@@ -492,7 +518,8 @@ typedef struct {
     local uint temp_checksum = Checksum(CHECKSUM_ADLER32, 12, temp_expected_file_size - 12, -1, -1);
     if(temp_checksum != ReadUInt(FTell())) {
         SetBackColor(cLtRed);
-        Warning("Alder32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+        SPrintf(temp_warning, "Alder32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+        PrintWarning(temp_warning);
     }
     uint checksum <format=hex, comment="Alder32 checksum of rest of file">;
     // Ensure we reset color to not bleed
@@ -509,7 +536,8 @@ typedef struct {
     ChecksumAlgStr(CHECKSUM_SHA1, temp_prepared_sha1, 32, temp_expected_file_size- 32, "", -1, -1);
     if(temp_expected_sha1 != temp_prepared_sha1) {
         SetBackColor(cLtRed);
-        Warning("Sha1 checksum did not match, expected %s but got %s", temp_expected_sha1, temp_prepared_sha1);
+        SPrintf(temp_warning, "Sha1 checksum did not match, expected %s but got %s", temp_expected_sha1, temp_prepared_sha1);
+        PrintWarning(temp_warning);
     }
     SHA1 signature <comment="SHA-1 signature of rest of file">;
     // Ensure we reset color to not bleed
@@ -522,10 +550,10 @@ typedef struct {
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
     if(file_size > FileSize()) {
-        Warning("File size appears be to smaller than expected - invalid dex file");
+        PrintWarning("File size appears be to smaller than expected - invalid dex file");
     } else if(file_size < FileSize()) {
         // This could still technically be a valid dex file according to code paths in the verifier
-        Warning("File size appears be to larger than expected");
+        PrintWarning("File size appears be to larger than expected");
     }
 
     if(ReadUInt(FTell()) != 0x70) {
@@ -533,7 +561,7 @@ typedef struct {
     }
     uint header_size <comment="Header size in bytes">;
     if(header_size > 0x70) {
-        Warning("Header size appears be to larger than expected");
+        PrintWarning("Header size appears be to larger than expected");
     }
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
@@ -542,7 +570,7 @@ typedef struct {
 
     if(endian_tag != ENDIAN_CONSTANT) {
         // XXX we don't handle big endian files
-        Warning("Invalid endian_tag %.8X, should be %.8X", endian_tag, ENDIAN_CONSTANT);
+        PrintWarning("Invalid endian_tag %.8X, should be %.8X", endian_tag, ENDIAN_CONSTANT);
     }
 
     if(ReadUInt(FTell()) != 0 && ReadUInt(FTell() + 4) != 0) {
@@ -551,7 +579,7 @@ typedef struct {
     uint link_size <comment="Size of link section">;
     uint link_off <comment="File offset of link section">;
     if(link_size != 0 || link_off != 0) {
-        Warning("A link section appears to be set, this is not supported");
+        PrintWarning("A link section appears to be set, this is not supported");
     }
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
@@ -1687,7 +1715,8 @@ typedef struct {
     } else if (type == DEX_CHUNK_END) {
         //ubyte chunkbytes[realsize];
     } else {
-        Warning("Unknown chunk type 0x%X", type);
+        SPrintf(temp_warning, "Unknown chunk type 0x%X", type);
+        PrintWarning(temp_warning);
         return;
     }
 } dexopt_opt_chunk <read=DexOptChunkRead, optimize=false>;
@@ -1800,4 +1829,15 @@ if(odex) {
         FSeek(dexopt_header.opt_offset);
         dexopt_opt_table opt_table <comment="DexOpt OPT tabls">;
     }
+}
+
+// It's not really useful to see just the last warning, so inform us how many warnings we should see in output
+if(warnings > 1) {
+    Warning("%d warnings have occured and logged to the output box!", warnings);
+}
+
+// This will make the template show "Template executed successfully."
+if(warnings != 0) {
+    SPrintf(temp_warning, "%d warnings found, template may not have run successfully!", warnings);
+    return temp_warning;
 }
