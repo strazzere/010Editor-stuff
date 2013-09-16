@@ -1,0 +1,52 @@
+//--------------------------------------
+//--- 010 Editor v4.0.1 Script File
+//
+// File:        CopyAsJavaShortHexSequence
+// Author:      Tim "diff" Strazzere - diff@lookout.com
+// Revision:    1.0
+// Purpose:     Copies the selection to the clipboard as
+//              hex bytes without any spaces; opposed to the
+//              default with spaces and newlines. Adds the
+//		"(short) 0x" infront of the bytes for easy use
+//		in java.
+//              
+//              Lots of this is just modified version of
+//              CopyAsCpp.1sc
+//--------------------------------------
+
+int i, start, size, origfile, newfile;
+
+if( GetSelSize() == 0 )
+{
+    // If there is no selection, try to be helpful
+    // and just select the whole file
+    start = 0;
+    size = FileSize();
+} else {
+    // Otherwise use the selection given by the user
+    start = GetSelStart(); 
+    size  = GetSelSize();
+}
+
+// Create a temp file for output
+origfile = GetFileNum();
+newfile = FileNew();
+FileSelect(origfile);
+
+
+FPrintf( newfile, "short[] codedString = { " );
+// Write out the bytes from start/size determined above
+for(i = 0; i < size; i+=2) {
+    FPrintf( newfile, "(short) 0x%02X%02X", (int)ReadUByte(start+i+1), (int)ReadUByte(start+i));
+    if(i+1 < size) {
+        FPrintf( newfile, ", " );
+    }
+}
+FPrintf( newfile, " };" );
+
+// Copy to clipboard and kill the temp file
+FileSelect(newfile);
+SetSelection(0, FileSize());
+CutToClipboard();
+FileClose();
+FileSelect(origfile);
