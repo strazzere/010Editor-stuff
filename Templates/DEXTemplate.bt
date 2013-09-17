@@ -10,6 +10,20 @@
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.7 (2013-9-17)
+// ADDED:
+//  - Added Adler32 checksum parsing for odex contents.
+//  - Added reading class descriptor inside odex sections.
+// FIXED:
+//  - Odex parsing in general, offsets where not being properly
+//    padded, now they are.
+//  - File size attribute is not properly parsed and checked for
+//    odex files.
+//  - Fixed the Alder32 and SHA1 checks when file is odex, significant
+//    speed increases in doing so.
+//  - SHA1 should just not be run against Odex since it should always
+//    fail.
+//
 // Version 1.6 (2013-9-13)
 //
 // FIXED:
@@ -507,15 +521,20 @@ string EncodedAnnotationRead(encoded_annotation &a) {
 typedef struct {
     dex_magic magic <comment="Magic value">; 
 
+    local uint file_start = 0;
+    if(odex) {
+        file_start = dexopt_header.dex_offset;
+    }
+
     // Temp variable for expected file_length
-    local uint temp_expected_file_size = ReadUInt(32);
+    local uint temp_expected_file_size = ReadUInt(file_start + 32);
     // If the size is less than the actual file - lets just set it to be filesize and let other
     // things fail nicely than hit out of bound errors
     if(temp_expected_file_size > FileSize()) {
         temp_expected_file_size = FileSize();
     }
 
-    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, 12, temp_expected_file_size - 12, -1, -1);
+    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, file_start + 12, temp_expected_file_size - 12, -1, -1);
     if(temp_checksum != ReadUInt(FTell())) {
         SetBackColor(cLtRed);
         SPrintf(temp_warning, "Alder32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
@@ -525,36 +544,42 @@ typedef struct {
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
 
-    // Preemptively read the sha1 in for comparison
-    local string temp_expected_sha1, temp_char;
-    local int i;
-    for(i = 0; i < 20; i++) {
-        SPrintf(temp_char, "%.2X", ReadUByte(FTell()+i));
-        temp_expected_sha1 += temp_char;
-    }
-    local string temp_prepared_sha1 = "";
-    ChecksumAlgStr(CHECKSUM_SHA1, temp_prepared_sha1, 32, temp_expected_file_size- 32, "", -1, -1);
-    if(temp_expected_sha1 != temp_prepared_sha1) {
-        SetBackColor(cLtRed);
-        SPrintf(temp_warning, "Sha1 checksum did not match, expected %s but got %s", temp_expected_sha1, temp_prepared_sha1);
-        PrintWarning(temp_warning);
+    // Odex files kill the sha1, but the above checksum is changed
+    if(!odex) {
+        // Preemptively read the sha1 in for comparison
+        local string temp_expected_sha1, temp_char;
+        local int i;
+        for(i = 0; i < 20; i++) {
+            SPrintf(temp_char, "%.2X", ReadUByte(FTell()+i));
+            temp_expected_sha1 += temp_char;
+        }
+        local string temp_prepared_sha1 = "";
+        ChecksumAlgStr(CHECKSUM_SHA1, temp_prepared_sha1, file_start + 32, temp_expected_file_size - 32, "", -1, -1);
+        if(temp_expected_sha1 != temp_prepared_sha1) {
+            SetBackColor(cLtRed);
+            SPrintf(temp_warning, "Sha1 checksum did not match, expected %s but got %s", temp_expected_sha1, temp_prepared_sha1);
+            PrintWarning(temp_warning);
+        }
     }
     SHA1 signature <comment="SHA-1 signature of rest of file">;
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
 
-    if(ReadUInt(FTell()) != FileSize()) {
+    local uint temp_file_size = ReadUInt(FTell());
+    if(temp_file_size > FileSize()) {
+        PrintWarning("File size appears be to smaller than expected - invalid dex file");
+        SetBackColor(cLtRed);
+    } else if(odex && temp_file_size != dexopt_header.dex_length) {
+        PrintWarning("File size does not match what odex header says it should be");
+        SetBackColor(cLtRed);
+    } else if(!odex && temp_file_size < FileSize()) {
+        // This could still technically be a valid dex file according to code paths in the verifier
+        PrintWarning("File size appears be to larger than expected");
         SetBackColor(cLtRed);
     }
     uint file_size <comment="File size in bytes">;
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
-    if(file_size > FileSize()) {
-        PrintWarning("File size appears be to smaller than expected - invalid dex file");
-    } else if(file_size < FileSize()) {
-        // This could still technically be a valid dex file according to code paths in the verifier
-        PrintWarning("File size appears be to larger than expected");
-    }
 
     if(ReadUInt(FTell()) != 0x70) {
         SetBackColor(cLtRed);
@@ -1812,27 +1837,27 @@ if(odex) {
 SetBackColor(cLtGreen);
 header_item dex_header <comment="Dex file header">;
 
-FSeek(dex_header.string_ids_off);
+FSeek(dex_header.string_ids_off + odexpad);
 SetBackColor(cLtYellow);
 string_id_list dex_string_ids(dex_header.string_ids_size) <comment="String ID list">;
 
-FSeek(dex_header.type_ids_off);
+FSeek(dex_header.type_ids_off + odexpad);
 SetBackColor(cLtPurple);
 type_id_list dex_type_ids(dex_header.type_ids_size) <comment="Type ID list">;
 
-FSeek(dex_header.proto_ids_off);
+FSeek(dex_header.proto_ids_off + odexpad);
 SetBackColor(cLtBlue);
 proto_id_list dex_proto_ids(dex_header.proto_ids_size) <comment="Method prototype ID list">;
 
-FSeek(dex_header.field_ids_off);
+FSeek(dex_header.field_ids_off + odexpad);
 SetBackColor(cYellow);
 field_id_list dex_field_ids(dex_header.field_ids_size) <comment="Field ID list">;
 
-FSeek(dex_header.method_ids_off);
+FSeek(dex_header.method_ids_off + odexpad);
 SetBackColor(cDkYellow);
 method_id_list dex_method_ids(dex_header.method_ids_size) <comment="Method ID list">;
 
-FSeek(dex_header.class_defs_off);
+FSeek(dex_header.class_defs_off + odexpad);
 SetBackColor(cLtGray);
 class_def_item_list dex_class_defs(dex_header.class_defs_size) <comment="Class definitions list">;
 
