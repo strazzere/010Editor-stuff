@@ -1,0 +1,33 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Script File
+//
+// File: InflateDexDataSection.1sc
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose: A script to inject empty bytes into the Dex files
+//          data section.
+//--------------------------------------
+
+if(ReadUByte(0) != 0x64 && ReadUByte(1) != 0x65 && ReadUByte(2) != 0x78) {
+    return "Doesn't appear to be a DEX file - quitting!\n";
+}else if(!exists(dex_header)) {
+    return "DEXTemplate doesn't appear to have been run!";
+}
+
+uint buffer_size = InputNumber("Size of inflation?",
+                                "# bytes to inflate data section",
+                                "64");
+
+// TODO: We should make sure we don't go over the maximum size to, but figure that out later
+if(buffer_size == BAD_VALUE || buffer_size < 1) {
+    return "Bad size to inflate the data section, quitting!\n";
+}
+
+// Insert the empty bytes
+InsertBytes(dex_header.data_off + dex_header.data_size, buffer_size, 0x00);
+
+// Fix expected file size and data size
+WriteUInt(startof(dex_header.file_size), dex_header.file_size + buffer_size);
+WriteUInt(startof(dex_header.data_size), dex_header.data_size + buffer_size);
+
+Printf("Script successful, %d empty bytes injected at the end of the data section, don't forget to fix checksum and sha1.\n", buffer_size);
