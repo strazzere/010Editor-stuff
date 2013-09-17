@@ -40,7 +40,7 @@ ubyte Atox(char character) {
 
 
 if(ReadUByte(0) != 0x64 && ReadUByte(1) != 0x65 && ReadUByte(2) != 0x78) {
-    return "Doesn't appear to be a DEX file - quiting!\n";
+    return "Doesn't appear to be a DEX file - quitting!\n";
 }
 
 // Attempt to read the expected file size from the header
