@@ -1756,14 +1756,24 @@ string DexOptChunkRead(dexopt_opt_chunk &c) {
 }
 
 typedef struct {
+    int offset;
+} class_descriptor <read=readClassDescriptor, optimize=false>;
+
+string readClassDescriptor(class_descriptor &item) {
+    if(item.offset != 0)
+        return ReadString(sizeof(dexopt_header) + item.offset);
+    return "";
+}
+
+typedef struct {
     uint class_descriptor_hash <comment="Class descriptor hash code">; 
-    int class_descriptor_offset <comment="File offset of class descriptor">;
+    class_descriptor class_descriptor_item <comment="Class descriptor item">;
     int class_definition_offset <comment="File offset of class definition">; 
 } dex_class_lookup_entry <read=DexClassLookupEntryRead, optimize=false, size=12>;
 
 string DexClassLookupEntryRead(dex_class_lookup_entry &e) {
     local string s;
-    SPrintf(s, "0x%X: (descriptor 0x%X, definition 0x%X)", e.class_descriptor_hash, e.class_descriptor_offset, e.class_definition_offset);
+    SPrintf(s, "0x%X: (descriptor 0x%X, definition 0x%X)", e.class_descriptor_hash, e.class_descriptor_item.offset, e.class_definition_offset);
     return s;
 }
 
