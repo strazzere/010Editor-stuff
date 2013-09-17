@@ -618,6 +618,9 @@ int readHeaderItemSize(header_item &item) {
 // odex file header
 //////////////////////////////////////////////////
 
+// Keeping this enum, but it shouldn't ever happen that the flag
+// will be anything other than 0x0 or DEX_OPT_FLAG_BIG
+// https://android.googlesource.com/platform/dalvik.git/+/57fd399d1265ec627d28a15b3d4b98e5f239ac88%5E!/
 typedef enum <uint> {
     DEX_FLAG_VERIFIED = 0x1,
     DEX_OPT_FLAG_BIG = 0x2,
@@ -634,6 +637,16 @@ typedef struct {
     uint opt_offset <comment="File offset of optimized data tables">;
     uint opt_length <comment="Size of optimized data tables">;
     DEX_OPT_FLAGS flags <read=DexOptFlagsRead, comment="Flags">;
+
+    // This is a potentially sloppy way of getting the size of the section to be checksum'ed,
+    // though I haven't bothered to look up how the padding is done on the end of the
+    // deps + opt section
+    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, deps_offset,FileSize() - deps_offset, -1, -1);
+    if(temp_checksum != ReadUInt(FTell())) {
+        SetBackColor(cLtRed);
+        SPrintf(temp_warning, "Alder32 checksum for optimized dependancies did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+        PrintWarning(temp_warning);
+    }
     uint checksum <comment="Alder32 checksum of dependency table and optimization table">;    
 } dexopt_header_item <size=40>;
 
