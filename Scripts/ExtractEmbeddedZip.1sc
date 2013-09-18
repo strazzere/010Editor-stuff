@@ -1,0 +1,63 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Script File
+//
+// File:        ExtractEmbeddedZip
+// Author:      Tim "diff" Strazzere - diff@lookout.com
+// Revision:    1.0
+// Purpose:     Attempts to find the first zip file inside
+//              of the file it is run on. Then it will copy
+//              from the assumed beginning to and expected end.
+//              The output will be dumped into a newly opened
+//              and unsaved tab.
+//
+//              Rather basic and may not always work, but worked
+//              for doing simple zip extraction from .Net executables
+//              that I was dealing with.
+//--------------------------------------
+
+#define ZIP_FILE_RECORD_TAG 0x04034b50
+#define ZIP_END_LOCATOR_TAG 0x06054b50
+
+int findFirstTag(uint TAG, uint start) {
+    TFindResults found = FindAll(TAG, true, false, false, 0, 1, start, 0, 24);
+    if(found.count > 0) {
+        return found.start[0];
+    }
+
+    return -1;
+}
+
+uint SeekToZipEndLocator(uint start)
+{
+    return findFirstTag(ZIP_END_LOCATOR_TAG, start);
+}
+
+uint SeekToZipFileRecord()
+{
+    return findFirstTag(ZIP_FILE_RECORD_TAG, 0);
+}
+
+// Find first Zip File Record
+uint zipFileRecordStart = SeekToZipFileRecord();
+Printf("Found a ZipFileRecord @ [ %d ]\n", zipFileRecordStart);
+
+// Find first Zip End Locator
+uint zipEndLocator = SeekToZipEndLocator(zipFileRecordStart);
+Printf("Found a ZipEndLocator @ [ %d ]\n", zipEndLocator);
+
+if(zipFileRecordStart == -1 || zipEndLocator == -1) {
+    return "Failed to find both a ZipFileRecord and a ZipEndLocator!";
+} else {
+    // Dump to a seperate file
+    uint origfile = GetFileNum();
+    uint newfile = FileNew();
+    FileSelect(origfile);
+    
+    SetSelection(zipFileRecordStart, zipEndLocator);
+    CopyToClipboard();
+    FileSelect(newfile);
+    SetFileInterface("Hex");
+    PasteFromClipboard();
+    Printf("Successfully created a new tab with [ %d ] bytes, which is hopefully a zip file.\n", zipEndLocator - zipFileRecordStart);
+}
+    
