@@ -41,7 +41,7 @@ typedef struct {
 
 typedef struct {
     char signer_info[16];
-    long singature_info;
+    long signature_info;
     long key_id;
     char digest[256];
 } Digest;
