@@ -3,13 +3,16 @@
 //
 // File:     AndroidzImageTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.0
+// Revision: 1.1
 // Purpose:  Quick template for parsing Android boot/recovery (zImage) images, just wip
 //
 //           Most (if not all) research stolen from;
 //           - https://github.com/we3des/psychic-octo-robot/wiki/Android-boot.img-zImage-format
 //           Which is pulled mostly from;
 //           - https://github.com/android/platform_system_core/blob/master/mkbootimg/bootimg.h
+//
+//           CertISW structure (added in 1.1) was taken from;
+//           - http://www.droid-developers.org/wiki/Cryptography
 //--------------------------------------
 
 #define PAGE_SIZE (0x800)
@@ -31,9 +34,60 @@ string SHA1Read(SHA1 sig) {
 }
 
 typedef struct {
+    int image_offset;
+    int image_size;
+    int data_byte[5];
+} Images;
+
+typedef struct {
+    char signer_info[16];
+    long singature_info;
+    long key_id;
+    char digest[256];
+} Digest;
+
+typedef struct {
+    int reg_address;
+    int reg_value;
+} Reg_table;
+
+typedef struct {
+    char cert_mark[8] <comment="Magic bytes that the file command should use">;
+    if(Strcmp(cert_mark, "CertISW\00") != 0) {
+        return("Doesn't appear to be a correct CerISW struct - bailing!\n");
+    }
+
+    int cert_version;
+    int cert_type;
+
+    int minimum_version_src;
+    int minimum_version_pk;
+    int minimum_version_ppa;
+    int minimum_version_rd1;
+    int minimum_version_rd2;
+    int minimum_version_isw;
+
+    int watchdog_param;
+    int use_DMA;
+    int active_images;
+    Images images[4];
+
+    int magic[1];
+    int reg_bitfield;
+    Reg_table reg_table[32];
+    int reg_type_01;
+    int reg_type_02;
+
+    int enter_point_offset;
+    int zero_hole[32];
+    Digest digest;
+
+} CertISW;
+
+typedef struct {
     char magic[8] <comment="Magic bytes that the file command should use">;
     if(Strcmp(magic, "ANDROID!") != 0) {
-        return("Doesn't appear to be a zImage file - bailing!");
+        return("Doesn't appear to be a zImage file - bailing!\n");
     }
 
     uint kernel_size;
@@ -61,6 +115,11 @@ typedef struct {
     SHA1 id <comment="Seems to be a SHA1">;
 } Android_zImage_header;
 
+// Does it look like it has a CertISW?
+if(ReadByte(0) == 0x43) {
+    CertISW Cert_ISW;
+}
+
 // This should always be one page
 Android_zImage_header bootImage;
 // Skip to the end of the page
@@ -71,18 +130,24 @@ local int pages = pages = bootImage.kernel_size / PAGE_SIZE;
 if(bootImage.kernel_size % PAGE_SIZE) {
     pages = pages + 1;
 }
-ubyte kernel[pages * PAGE_SIZE];
+if(pages != 0) {
+    ubyte kernel[pages * PAGE_SIZE];
+}
 
 // Ensure we get the padded page at the end
 pages = bootImage.ramdisk_size / PAGE_SIZE;
 if(bootImage.ramdisk_size % PAGE_SIZE) {
     pages = pages + 1;
 }
-ubyte ramdisk[pages * PAGE_SIZE];
+if(pages != 0) {
+    ubyte ramdisk[pages * PAGE_SIZE];
+}
 
 // Ensure we get the padded page at the end
 pages = bootImage.second_size / PAGE_SIZE;
 if(bootImage.second_size % PAGE_SIZE) {
     pages = pages + 1;
 }
-ubyte second[pages * PAGE_SIZE];
+if(pages != 0) {
+    ubyte second[pages * PAGE_SIZE];
+}
