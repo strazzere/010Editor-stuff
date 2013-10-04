@@ -32,6 +32,10 @@ string SHA1Read(SHA1 sig) {
 
 typedef struct {
     char magic[8] <comment="Magic bytes that the file command should use">;
+    if(Strcmp(magic, "ANDROID!") != 0) {
+        return("Doesn't appear to be a zImage file - bailing!");
+    }
+
     uint kernel_size;
     uint kernel_address <format=hex, comment="Default is 0x10008000. Whatever number you type is added to 0x00008000">;
 
