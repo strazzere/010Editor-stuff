@@ -120,10 +120,12 @@ if(ReadByte(0) == 0x43) {
     CertISW Cert_ISW;
 }
 
+local int start = FTell();
+
 // This should always be one page
 Android_zImage_header bootImage;
 // Skip to the end of the page
-FSkip(PAGE_SIZE - FTell());
+FSkip(PAGE_SIZE - FTell() + start);
 
 // Ensure we get the padded page at the end
 local int pages = pages = bootImage.kernel_size / PAGE_SIZE;
