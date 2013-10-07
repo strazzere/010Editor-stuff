@@ -10,6 +10,8 @@
 // Version 1.3 (2013-10-07)
 //  - Fixed MAIN load command.
 //  - Fixed support/parsing for DULIB_CODE_SIGN_DRS.
+//  - Added SOURCE_VERSION parsing.
+//  - Fixed MIN_(MAC/IPHONE) version commands
 //  - Fixed some typos and spacing issues.
 //
 // Version 1.2 (2013-02-08)
@@ -554,6 +556,20 @@ string VersionRead(Version &version) {
 }
 
 typedef struct {
+    uint64 version;
+} SourceVersion <read=SourceVersionRead, optimize=true, size=8>;
+
+string SourceVersionRead(SourceVersion &version) {
+    local string version_string;
+    SPrintf(version_string, "%u.%u.%u.%u.%u", (version.version >> 64) & 0xFF,
+                                              (version.version >> 32) & 0xFF,
+                                              (version.version >> 16) & 0xFF,
+                                              (version.version >> 8) & 0xFF,
+                                               version.version & 0xFF);
+    return version_string;
+}
+
+typedef struct {
     // These two belong to every type of command
     LoadCommandType command;
     uint32 command_size;
@@ -617,10 +633,13 @@ typedef struct {
     case UUID :
         Uuid uuid;
         break;
+    case SOURCE_VERSION :
+        SourceVersion source_version;
+        break;
     case VERSION_MIN_MAC_OSX :
     case VERSION_MIN_IPHONE_OS :
-        Version version;
-        uint32 reserved <comment="Should be zero">;
+        Version minimum_os_version;
+        Version minimumsdk_version;
         break;
     case DATA_IN_CODE :
     case FUNCTION_STARTS :
@@ -834,6 +853,10 @@ typedef struct {
         if(number_of_sections > 0) {
             Section section[number_of_sections];
         }
+        break;
+    case MAIN :
+        uint64 entry_offset;
+        uint64 stack_size;
         break;
     default :
         Warning("Hit an unknown or unsupported load command : [%d]", command);
