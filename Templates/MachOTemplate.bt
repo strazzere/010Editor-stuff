@@ -3,9 +3,14 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.2
-// Purpose:  Quick template for parsing Mach-o binaries, pretty much fully working!
+// Revision: 1.3
+// Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
+//
+// Version 1.3 (2013-10-07)
+//  - Fixed MAIN load command.
+//  - Fixed support/parsing for DULIB_CODE_SIGN_DRS.
+//  - Fixed some typos and spacing issues.
 //
 // Version 1.2 (2013-02-08)
 //  - Fixed LoadCommand for ARM thread handling
@@ -323,7 +328,7 @@ typedef enum <uint> {
     SUB_CLIENT              = 0x14,
     SUB_LIBRARY             = 0x15,
     TWOLEVEL_HINTS          = 0x16,
-    PREBIND_CKSUM        = 0x17,
+    PREBIND_CKSUM           = 0x17,
     LOAD_WEAK_DYLIB         = 0x18 | REQ_DYLD,
     SEGMENT_64              = 0x19,
     ROUTINES_64             = 0x1A,
@@ -341,7 +346,7 @@ typedef enum <uint> {
     VERSION_MIN_IPHONE_OS   = 0x25,
     FUNCTION_STARTS         = 0x26,
     DYLD_ENVIRONMENT        = 0x27,
-    MAIN                    = 0x28,
+    MAIN                    = 0x28 | REQ_DYLD,
     DATA_IN_CODE            = 0x29,
     SOURCE_VERSION          = 0x2A,
     DYLIB_CODE_SIGN_DRS     = 0x2B
@@ -621,6 +626,7 @@ typedef struct {
     case FUNCTION_STARTS :
     case CODE_SIGNATURE :
     case SEGMENT_SPLIT_INFO:
+    case DYLIB_CODE_SIGN_DRS:
         uint32 data_offset;
         uint32 data_size;
         break;
