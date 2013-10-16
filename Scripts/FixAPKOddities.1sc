@@ -1,0 +1,32 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Script File
+//
+// File: FixAPKOddities.1sc
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose: A script to mess with the password protection method
+//          of an APK. This leads it to not being unzipped by
+//          most tools, though still installs on Android devices.
+//
+//          *Must run the ZIPTemplateAdv.bt first!
+//--------------------------------------
+
+int number_of_records = endLocator.elEntriesOnDisk;
+int i;
+
+if(!exists(number_of_records)) {
+    return "ZIPTemplateAdv doesn't appear to have been run!";
+}
+
+for(i = 0; i < number_of_records; i++) {
+    // Ensure flag is FLAG_DescriptorUsedMask -- this should be safe for everything UTF_8 flag might be as well
+    record[i].frFlags = 8;
+    dirEntry[i].deFlags = 8;
+
+    // Compressions _should_ be COMP_DEFLATE (8) (images/resources not compressed though, just stored!)
+    // ZipRecords can lie -- they can have DEFLATE || something else
+    // but the directory entry is what is truly respected
+    if(record[i].frCompression != dirEntry[i].deCompression) {
+        record[i].frCompression = dirEntry[i].deCompression;
+    }
+}
