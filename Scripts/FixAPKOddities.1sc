@@ -19,14 +19,16 @@ if(!exists(number_of_records)) {
 }
 
 for(i = 0; i < number_of_records; i++) {
-    // Ensure flag is FLAG_DescriptorUsedMask -- this should be safe for everything UTF_8 flag might be as well
-    record[i].frFlags = 8;
-    dirEntry[i].deFlags = 8;
-
     // Compressions _should_ be COMP_DEFLATE (8) (images/resources not compressed though, just stored!)
     // ZipRecords can lie -- they can have DEFLATE || something else
     // but the directory entry is what is truly respected
     if(record[i].frCompression != dirEntry[i].deCompression) {
         record[i].frCompression = dirEntry[i].deCompression;
+        record[i].frFlags = 2048;
+        dirEntry[i].deFlags = 2048;
+    } else {
+        // Ensure flag is FLAG_DescriptorUsedMask -- this should be safe for everything UTF_8 flag might be as well
+        record[i].frFlags = 8;
+        dirEntry[i].deFlags = 8;
     }
 }
