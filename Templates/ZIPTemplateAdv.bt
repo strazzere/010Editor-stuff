@@ -3,7 +3,7 @@
 //
 // File:     ZIPTemplateAdv.bt
 // Author:   SweetScape Software
-// Revision: 2.4
+// Revision: 2.5
 // Purpose:  Defines a template for
 //    parsing ZIP files. Handles more
 //    complex ZIP data such as ZIP64
@@ -24,10 +24,13 @@
 //   - Added write function for ZIP64ENDLOCATOR structure.
 //   - Added write function for EXTRAFIELD structure.
 //
-// 2.4 (Tim Strazzere, diff@lookout.com)
+// 2.4 (Tim Strazzere, strazz@gmail.com diff@lookout.com)
 //   - Added ability to parse JAR/APK files promperly
 //   - Fixed odd padding issues surrounding misformed extra fields,
 //     and skip creation of these fields if padding is that small
+// 2.5 (Tim Strazzere, strazz@gmail.com diff@lookout.com)
+//   - Don't die on improperly formed records which do not link
+//     to a directory entry (Android edgecase)
 //
 //-----------------------------------
 
@@ -680,12 +683,15 @@ while( !FEof() )
                 isJar = 1;
         if(isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
         {
-            Printf("skipping to dataDescription\n");
-            // Skip data if need be, since a JAR doesn't properly set the
-            // compressed size / uncompressed size in the ZIPFILERECORD, 
-            // it's actually set in the DATADESCR section
-            SeekToDataDescription();
-            Printf("Pointing at %d\n", FTell());
+            // We need to skip over this case as it can happen but should not
+            if(record.frCompression != COMP_STORED) {
+                Printf("skipping to dataDescription\n");
+                // Skip data if need be, since a JAR doesn't properly set the
+                // compressed size / uncompressed size in the ZIPFILERECORD,
+                // it's actually set in the DATADESCR section
+                SeekToDataDescription();
+                Printf("Pointing at %d\n", FTell());
+            }
         }
 
         if(!isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
