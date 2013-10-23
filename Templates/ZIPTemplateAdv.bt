@@ -434,7 +434,7 @@ typedef struct {
         // the extra header is not always properly formatted
         // This will attempt to register those sections as
         // padding to avoid improperly parsing the files
-        if(len < 4)
+        if(len > 0 && len < 4)
         {
             char padding[len];
             break;
