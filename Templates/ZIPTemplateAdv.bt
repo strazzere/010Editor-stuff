@@ -292,7 +292,7 @@ typedef struct {
         Warning("Hit an odd NO_HEADER section in extra fields!");
         break;
 	default:
-		if(efDataSize > 0 )
+		if(efDataSize > 0 && efDataSize < FileSize() - FTell())
 		    char efData[ efDataSize ];
         break;
 	}
