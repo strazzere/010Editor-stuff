@@ -418,7 +418,7 @@ typedef struct {
 
     // This has to be padding if there isn't enough room for
     // a proper header byte
-    if(len < 2)
+    if(len > 0 && len < 2)
         char padding[len];
     // It's possible for there to be an extra field if there are
     // atleast two bytes available
