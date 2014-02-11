@@ -4,13 +4,21 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.6
+// Revision: 1.8
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.8 (2014-2-11)
+//
+// FIXED:
+//  - Small warning about type_item array not being created when the size
+//    is zero. Not a large issue but creating unwanted info in the
+//    output.
+//
 // Version 1.7 (2013-9-17)
+//
 // ADDED:
 //  - Added Adler32 checksum parsing for odex contents.
 //  - Added reading class descriptor inside odex sections.
@@ -758,7 +766,9 @@ typedef struct {
 
 typedef struct {
     uint size <comment="Number of entries in type list">;
-    type_item list[size] <read=TypeItemRead, comment="Type entry">;
+     if(size != 0) {
+         type_item list[size] <read=TypeItemRead, comment="Type entry">;
+     }
 } type_item_list <read=TypeItemListRead, optimize=true>;
 
 string TypeItemRead(type_item &t) {
