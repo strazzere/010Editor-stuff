@@ -9,6 +9,14 @@
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
 //
+// Version 2.3
+// ADDED:
+//  - Simple error checking around program headers - skip over invalid ones and keep going
+//  - Simple warning logging (taken from my DEXTemplate.bt)
+//  - Lots of comments for template variables to help understand wtf is going on,
+//    most taken from;
+//      http://www.ouah.org/RevEng/x430.htm
+//      http://www.uclibc.org/docs/elf-64-gen.pdf
 // Version 2.2
 // FIXED:
 //  - Fixed issues if the section header count is greater
@@ -25,6 +33,21 @@
 
 // ELF Header Types
 // ELF identification element
+
+local int warnings = 0;
+local string temp_warning;
+
+// A hack to get warning messages to both "Warn" (show in status) and output to the "output" window
+void PrintWarning(string message) {
+    Warning(temp_warning);
+
+    // Ensure new-line, "Warning" statuses should not have them
+    SPrintf(temp_warning, "%s\n", message);
+    Printf(temp_warning);
+
+    // Hack to trigger a more generic "look at warnings in output"
+    warnings++;
+}
 
 // Accelerate a slow lookup with an array
 local int sec_tbl_elem[255];
@@ -325,18 +348,37 @@ string ReservedSectionName( s_name32_e id ) {
 typedef struct {  //32bit 
 	local quad off = FTell();
 
-	p_type32_e  p_type;
-	Elf32_Off   p_offset_FROM_FILE_BEGIN <format=hex>;
-	Elf32_Addr  p_vaddr_VIRTUAL_ADDRESS;
-	Elf32_Addr  p_paddr_PHYSICAL_ADDRESS;	
-	Elf32_Word  p_filesz_SEGMENT_FILE_LENGTH;
-	Elf32_Word  p_memsz_SEGMENT_RAM_LENGTH;	
-	p_flags32_e p_flags;
-	Elf32_Word  p_align; 
+	p_type32_e  p_type <comment="Segment type">;
 
-    if( p_filesz_SEGMENT_FILE_LENGTH > 0 ) {
+    if(ReadUInt(FTell()) > FileSize()) {
+        PrintWarning("Program section offset starts after the end of the file!");
+        SetBackColor(cLtRed);
+    }
+	Elf32_Off   p_offset_FROM_FILE_BEGIN <format=hex, comment="Segment file offset">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cWhite);
+
+	Elf32_Addr  p_vaddr_VIRTUAL_ADDRESS <comment="Segment virtual address">;
+	Elf32_Addr  p_paddr_PHYSICAL_ADDRESS <comment="Segment physical address">;
+
+    if(ReadUInt(FTell()) + p_offset_FROM_FILE_BEGIN > FileSize()) {
+        PrintWarning("Program section data seems to be larger than file size");
+        SetBackColor(cLtRed);
+    }
+	Elf32_Word  p_filesz_SEGMENT_FILE_LENGTH <comment="Segment size in file">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cWhite);
+
+	Elf32_Word  p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in memory">;
+	p_flags32_e p_flags <comment="Segment flags">;
+	Elf32_Word  p_align <comment="Segment alignment">;
+
+    // Ensure we're not trying to map ourside of the file (prevent error)
+    if( p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
 	    FSeek(p_offset_FROM_FILE_BEGIN);
-	    char        p_data[p_filesz_SEGMENT_FILE_LENGTH];
+	    char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+    } else {
+        PrintWarning("Segment data appears to either overlap with header, exist after the end of the file or overlap with the end of the file!");
     }
 
 	FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
@@ -344,18 +386,18 @@ typedef struct {  //32bit
 typedef struct {  //64bit 
 	local quad off = FTell();
 
-	p_type64_e  p_type;
-	p_flags64_e p_flags;
-	Elf64_Off   p_offset_FROM_FILE_BEGIN <format=hex>;
-	Elf64_Addr  p_vaddr_VIRTUAL_ADDRESS;
-	Elf64_Addr  p_paddr_PHYSICAL_ADDRESS;	
-	Elf64_Xword p_filesz_SEGMENT_FILE_LENGTH;
-	Elf64_Xword p_memsz_SEGMENT_RAM_LENGTH;	
-	Elf64_Xword p_align; 
+	p_type64_e  p_type <comment="Segment type">;
+	p_flags64_e p_flags <comment="Segment attributes">;
+	Elf64_Off   p_offset_FROM_FILE_BEGIN <format=hex, comment="Segment offset in file">;
+	Elf64_Addr  p_vaddr_VIRTUAL_ADDRESS <comment="Segment virtual address">;
+	Elf64_Addr  p_paddr_PHYSICAL_ADDRESS <comment="Reserved (Segment physical address?)">;
+	Elf64_Xword p_filesz_SEGMENT_FILE_LENGTH <comment="Segment size in file">;
+	Elf64_Xword p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in ram">;
+	Elf64_Xword p_align <comment="Segment alignment">;
 
     if( p_filesz_SEGMENT_FILE_LENGTH > 0 ) {
 	    FSeek(p_offset_FROM_FILE_BEGIN);
-    	char        p_data[p_filesz_SEGMENT_FILE_LENGTH];
+    	char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
     }
 
 	FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
@@ -667,53 +709,53 @@ struct {
     }
 
 	struct {
-		e_ident_t  	e_ident;
+		e_ident_t  	e_ident <comment="Magic number and other info">;
 		if (file.elf_header.e_ident.ei_class_2 == ELFCLASS32 )
 		{
 			//32-Bit definitions of ELF Header
-			e_type32_e 	e_type;
-			e_machine32_e 	e_machine;
-			e_version32_e 	e_version;
-			Elf32_Addr 	e_entry_START_ADDRESS;
-			Elf32_Off	e_phoff_PROGRAM_HEADER_OFFSET_IN_FILE;
-			Elf32_Off  	e_shoff_SECTION_HEADER_OFFSET_IN_FILE;
-			Elf32_Word  	e_flags;
-			Elf32_Half 	e_ehsize_ELF_HEADER_SIZE;
-			Elf32_Half 	e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE;
-			Elf32_Half 	e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES;
-			Elf32_Half 	e_shentzise_SECTION_HEADER_ENTRY_SIZE;
-			Elf32_Half 	e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES;									    
-			Elf32_Half 	e_shtrndx_STRING_TABLE_INDEX;
+			e_type32_e 	e_type <comment="Object file type">;
+			e_machine32_e 	e_machine <comment="Architecture">;
+			e_version32_e 	e_version <comment="Object file version">;
+			Elf32_Addr 	e_entry_START_ADDRESS <comment="Entry point virtual address">;
+			Elf32_Off	e_phoff_PROGRAM_HEADER_OFFSET_IN_FILE <comment="Program header table file offset">;
+			Elf32_Off  	e_shoff_SECTION_HEADER_OFFSET_IN_FILE <comment="Section header table file offset">;
+			Elf32_Word  	e_flags <comment="Processor-specific flags">;
+			Elf32_Half 	e_ehsize_ELF_HEADER_SIZE <comment="ELF Header size in bytes">;
+			Elf32_Half 	e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE <comment="Program header table entry size">;
+			Elf32_Half 	e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES <comment="Program header table entry count">;
+			Elf32_Half 	e_shentzise_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
+			Elf32_Half 	e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES <comment="Section header table entry count">;
+			Elf32_Half 	e_shtrndx_STRING_TABLE_INDEX <comment="Section header string table index">;
 		}
 		else
 		{
 			//64-Bit definitions of ELF Header
-			e_type64_e 	e_type;
-			e_machine64_e 	e_machine;
-			e_version64_e 	e_version;
-			Elf64_Addr 	e_entry_START_ADDRESS;
-			Elf64_Off	e_phoff_PROGRAM_HEADER_OFFSET_IN_FILE;
-			Elf64_Off  	e_shoff_SECTION_HEADER_OFFSET_IN_FILE;
-			Elf32_Word  	e_flags;
-			Elf64_Half 	e_ehsize_ELF_HEADER_SIZE;
-			Elf64_Half 	e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE;
-			Elf64_Half 	e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES;
-			Elf64_Half 	e_shentzise_SECTION_HEADER_ENTRY_SIZE;
-			Elf64_Half 	e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES;									    
-			Elf64_Half 	e_shtrndx_STRING_TABLE_INDEX;
+			e_type64_e 	e_type <comment="Object file type">;
+			e_machine64_e 	e_machine <comment="Architecture">;
+			e_version64_e 	e_version <comment="Object file version">;
+			Elf64_Addr 	e_entry_START_ADDRESS <comment="Entry point virtual address">;
+			Elf64_Off	e_phoff_PROGRAM_HEADER_OFFSET_IN_FILE <comment="Program header table file offset">;
+			Elf64_Off  	e_shoff_SECTION_HEADER_OFFSET_IN_FILE <comment="Section header table file offset">;
+			Elf32_Word  	e_flags <comment="Processor-specific flags">;
+			Elf64_Half 	e_ehsize_ELF_HEADER_SIZE <comment="ELF Header size in bytes">;
+			Elf64_Half 	e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE <comment="Program header table entry size">;
+			Elf64_Half 	e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES <comment="Program header table entry count">;
+			Elf64_Half 	e_shentzise_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
+			Elf64_Half 	e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES <comment="Section header table entry count">;
+			Elf64_Half 	e_shtrndx_STRING_TABLE_INDEX <comment="Section header string table index">;
 		}		
-	} elf_header;
+	} elf_header <comment="The main elf header basically tells us where everything is located in the file.">;
 
 	// Find the program table
     if( file.elf_header.e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES > 0 ) {
         FSeek(file.elf_header.e_phoff_PROGRAM_HEADER_OFFSET_IN_FILE);
         struct {
 	        if (file.elf_header.e_ident.ei_class_2 == ELFCLASS32 ) {
-		        program_table_entry32_t	program_table_element[file.elf_header.e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES];
+		        program_table_entry32_t	 program_table_element[file.elf_header.e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES];
 	        } else {
-		        program_table_entry64_t	program_table_element[file.elf_header.e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES];
+		        program_table_entry64_t	 program_table_element[file.elf_header.e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES];
 	        }
-        } program_header_table;
+        } program_header_table <comment="Program headers - describes the sections of the program that contain executable program code which will be mapped into the program address space as it is loaded">;
     }
 
 	// Find the header name location
@@ -793,3 +835,15 @@ struct {
 		} dynamic_symbol_table;
 	}
 } file;
+
+
+// It's not really useful to see just the last warning, so inform us how many warnings we should see in output
+if(warnings > 1) {
+    Warning("%d warnings have occured and logged to the output box!", warnings);
+}
+
+// This will make the template show "Template executed successfully."
+if(warnings != 0) {
+    SPrintf(temp_warning, "%d warnings found, template may not have run successfully!", warnings);
+    return temp_warning;
+}
