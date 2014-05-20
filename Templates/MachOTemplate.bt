@@ -3,9 +3,17 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.3
+// Revision: 1.3.1
 // Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
+//
+// Version 1.3.1 (2014-05-20)
+//  - Spot fix for PowerPC arch issues, the endianness is not being set
+//    properly. Now the template can "complete" but that section is currently
+//    a bit useless as there appears to be a bug in 010Editor Templating engine.
+//    The endianness is not being propagated to the rest of the structures - need
+//    to find a work around for this. Thank you to Joxean Koret for reporting this
+//    issue.
 //
 // Version 1.3 (2013-10-07)
 //  - Fixed MAIN load command.
@@ -336,8 +344,8 @@ typedef enum <uint> {
     ROUTINES_64             = 0x1A,
     UUID                    = 0x1B,
     RPATH                   = 0x1C | REQ_DYLD,
-    CODE_SIGNATURE          = 0x1D,
-    SEGMENT_SPLIT_INFO      = 0x1E,
+    CODE_SIGNATURE          = 0x1D, // LinkeditDataCommand
+    SEGMENT_SPLIT_INFO      = 0x1E, // LinkeditDataCommand
     REEXPORT_DYLIB          = 0x1F | REQ_DYLD,
     LAZY_LOAD_DYLIB         = 0x20,
     ENCRYPTION_INFO         = 0x21,
@@ -346,7 +354,7 @@ typedef enum <uint> {
     LOAD_UPWARD_DYLIB       = 0x23 | REQ_DYLD,
     VERSION_MIN_MAC_OSX     = 0x24,
     VERSION_MIN_IPHONE_OS   = 0x25,
-    FUNCTION_STARTS         = 0x26,
+    FUNCTION_STARTS         = 0x26, // LinkeditDataCommand
     DYLD_ENVIRONMENT        = 0x27,
     MAIN                    = 0x28 | REQ_DYLD,
     DATA_IN_CODE            = 0x29,
@@ -570,6 +578,7 @@ string SourceVersionRead(SourceVersion &version) {
 }
 
 typedef struct {
+
     // These two belong to every type of command
     LoadCommandType command;
     uint32 command_size;
@@ -895,6 +904,12 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
     local int i;
     for(i = 0; i < header.fat_arch_size; i++) {
         FSeek(header.fat_arch[i].file_offset);
+        if(header.fat_arch[i].cpu_type == CPU_TYPE_POWERPC ||
+            header.fat_arch[i].cpu_type == CPU_TYPE_POWERPC64) {
+            BigEndian();
+        } else {
+            LittleEndian();
+        }
         Header machHeader;
         cpu_typer = machHeader.cpu_type;
         LoadCommandList loadCommandList(machHeader.num_load_commands);
