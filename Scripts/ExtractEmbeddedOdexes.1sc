@@ -1,0 +1,77 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Script File
+//
+// File:        ExtractEmbeddedOdexes.1sc
+// Author:      Tim "diff" Strazzere - diff@lookout.com
+// Revision:    1.0
+// Purpose:     Attempts to find all Odex files inside
+//              of the file it is run on. Then it will copy
+//              from the assumed beginning to and expected end.
+//              The output will be dumped into a newly opened
+//              and unsaved tab.
+//
+//              Use case for me was core dumps, enjoy.
+//--------------------------------------
+
+uint GetEndOfOdex(uint start)
+{
+   /*
+    * Struct for Odex we care about;
+    *  magic (dey 036)
+    *  uint dex_offset
+    *  uint dex_length
+    *  uint deps_offset
+    *  uint deps_length
+    *  uint opt_offset
+    *  uint opt_length
+    *
+    * So if we take start + opt_offset + opt_length we should
+    * have the entire odex file
+    */
+    uint opt_offset = ReadUInt(start + 8 /* magic length */ 
+                                + 4 + 4  /* dex_offset dex_length */
+                                + 4 + 4  /* deps_offset deps_length */);
+    uint opt_length = ReadUInt(start + 8 /* magic length */ 
+                                + 4 + 4  /* dex_offset dex_length */
+                                + 4 + 4  /* deps_offset deps_length */
+                                + 4      /* opt_offset */);
+
+    return start + opt_offset + opt_length;
+}
+
+TFindResults potentialFiles = FindAll("dey\n036");
+
+Printf("Found %d potential Odex files.\n", potentialFiles.count);
+
+int i;
+uint odexFile = 0;
+uint odexFileEnd = 0;
+uint origfile = GetFileNum();
+uint newfile;
+for(i = 0; i < potentialFiles.count; i++) {
+    Printf("Found a Odex file start @ [ %d ]\n", potentialFiles.start[i]);
+    odexFile = potentialFiles.start[i];
+    odexFileEnd = GetEndOfOdex(odexFile);
+    Printf("Found a Odex file end @ [ %d ]\n", odexFileEnd);
+
+    if(odexFile == -1 || odexFileEnd == -1) {
+        offset = -1;
+    } else {
+        // Dump to a seperate file
+        newfile = FileNew();
+
+        // Select bytes
+        FileSelect(origfile);
+        SetSelection(odexFile, odexFileEnd);
+        CopyToClipboard();
+
+        // Dump bytes
+        FileSelect(newfile);
+        SetFileInterface("Hex");
+        PasteFromClipboard();
+        Printf("Successfully created a new tab with [ %d ] bytes, which is hopefully an odex file.\n", odexFileEnd - odexFile);
+
+        // Go back to original file
+        FileSelect(origfile);
+    }
+}
