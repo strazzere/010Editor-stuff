@@ -3,7 +3,7 @@
 //
 // File: AXMLTemplate.bt
 // Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.1
+// Revision: 0.2
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,10 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.2 (2014-11-13)
+// ADDED:
+//  - Parsing of attributes
+//  - String reader for attributes
 // Version 0.1 (2014-11-13)
 // ADDED:
 //  - First revision
@@ -18,21 +22,21 @@
 
 //--------------------------------------
 // TODO:
-//  - Parse attributes properly
 //  - Colorize
 //  - Check for errors
 //  - Flesh out extra comments and string-readers
 //  - Clean up and stop assuming thing
+//  - Finish ATTRIBUTE_TYPE enum - likely missing at least floats
 //--------------------------------------
 
 typedef enum <uint> {
-    STRING = 0x001C0001,
-    RESOURCE_ID = 0x00080180,
+    STRING          = 0x001C0001,
+    RESOURCE_ID     = 0x00080180,
     START_NAMESPACE = 0x00100100,
-    END_NAMESPACE = 0x00100101,
-    START_TAG = 0x00100102,
-    END_TAG = 0x00100103,
-    TEXT = 0x00100104
+    END_NAMESPACE   = 0x00100101,
+    START_TAG       = 0x00100102,
+    END_TAG         = 0x00100103,
+    TEXT            = 0x00100104
 } CHUNK_TYPE <format=hex>;
 
 typedef ubyte Magic[4] <format=hex, comment="Magic value">;
@@ -101,6 +105,49 @@ typedef struct {
     uint resource_ids[chunk_size/4 - 2] <format=hex>;
 } resource_chunk;
 
+typedef enum <uint> {
+    STRING_TYPE = 0x10000008,
+    INT_TYPE    = 0x03000008
+} ATTRIBUTE_TYPE <format=hex>;
+
+typedef struct {
+    uint uri  <format=hex>;
+    uint name;
+    uint string_data <format=hex>;
+    ATTRIBUTE_TYPE type;
+    uint data  <format=hex>;
+} attribute <read=AttributeRead>;
+
+string AttributeRead(attribute &i) {
+
+    local string uri;
+    if(i.uri > 0 && i.uri < 0xFFFFFFFF) {
+        PoolItemReader(strings.stringpool.string_item[i.uri]);
+    }
+    if(Strcmp("", uri) == 0) {
+        uri = "NULL";
+    }
+
+    local string name;
+    if(i.name > 0 && i.name < 0xFFFFFFFF) {
+        PoolItemReader(strings.stringpool.string_item[i.name]);
+    }
+    if(Strcmp("", name) == 0) {
+        name = "NULL";
+    }
+
+    local string data;
+    if(i.data > 0 && i.data < 0xFFFFFFFF) {
+        data = PoolItemReader(strings.stringpool.string_item[i.data]);
+    }
+    if(Strcmp("", data) == 0) {
+        data = "NULL";
+    }
+    local string s;
+    s = SPrintf(s, "%s : %s : %s", uri, name, data);
+    return s;
+}
+
 typedef struct {
     CHUNK_TYPE chunk_type;
     uint chunk_size;
@@ -118,7 +165,7 @@ typedef struct {
             uint flags  <format=hex>;
             uint attribute_count;
             uint class_attribute;
-            uint attributes[attribute_count * 5];
+            attribute attributes[attribute_count];
             break;
         case END_TAG :
             uint namespace_uri <format=hex>;
