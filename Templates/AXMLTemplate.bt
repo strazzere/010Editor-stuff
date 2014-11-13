@@ -3,7 +3,7 @@
 //
 // File: AXMLTemplate.bt
 // Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.2
+// Revision: 0.3
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,9 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.3 (2014-11-13)
+// ADDED:
+//  - Colorize
 // Version 0.2 (2014-11-13)
 // ADDED:
 //  - Parsing of attributes
@@ -22,7 +25,6 @@
 
 //--------------------------------------
 // TODO:
-//  - Colorize
 //  - Check for errors
 //  - Flesh out extra comments and string-readers
 //  - Clean up and stop assuming thing
@@ -38,8 +40,6 @@ typedef enum <uint> {
     END_TAG         = 0x00100103,
     TEXT            = 0x00100104
 } CHUNK_TYPE <format=hex>;
-
-typedef ubyte Magic[4] <format=hex, comment="Magic value">;
 
 typedef struct {
     // This might be a uleb128?
@@ -203,11 +203,26 @@ string ChunkRead(chunk &i) {
     }
 }
 
-Magic magic;
-uint file_size <format=hex>;
+typedef struct {
+    ubyte magic[4] <format=hex, comment="Magic bytes">;
+    uint file_size <format=hex, comment="Entire file size">;
+} axml_header;
+
+SetBackColor(cLtAqua);
+axml_header header;
+SetBackColor(cWhite);
+
+SetBackColor(cLtBlue);
 string_chunk strings;
+SetBackColor(cWhite);
+
 FSeek(strings.chunk_size + 8);
+SetBackColor(cLtPurple);
 resource_chunk resources;
+SetBackColor(cWhite);
+
+SetBackColor(cLtYellow);
 while(FTell() != FileSize()) {
     chunk xml_content;
 }
+SetBackColor(cWhite);
