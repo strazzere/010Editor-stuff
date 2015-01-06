@@ -4,12 +4,17 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.8
+// Revision: 1.9
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 1.9 (2015-1-06)
+//
+// ADDED:
+//  - Prompt user to check source file oddities
+//
 // Version 1.8 (2014-2-11)
 //
 // FIXED:
@@ -1889,6 +1894,38 @@ if(odex) {
         dexopt_opt_table opt_table <comment="DexOpt OPT tabls">;
     }
 }
+
+//////////////////////////////////////////////////
+// Post template completion checks and functions
+//////////////////////////////////////////////////
+int CheckSourceFileName(int source_file_index) {
+    local string temp_str = StringIdRead(source_file_index);
+    if(sizeof(temp_str) <= 6) {
+        return -1;
+    }
+
+    temp_str = SubStr(temp_str, sizeof(temp_str) - 7, -1);
+
+    return Strcmp(temp_str, ".java\"");
+}
+
+if( MessageBox( idYes | idNo,
+    "Check for oddities?",
+    "Check for source file issues?")
+      == idYes ) {
+    local int class_idx = 0;
+
+    for(class_idx = 0; class_idx < sizeof(dex_class_defs) / sizeof(dex_class_defs.class_def); class_idx++) {
+        if(dex_class_defs.class_def[class_idx].source_file_idx != NO_INDEX && CheckSourceFileName(dex_class_defs.class_def[class_idx].source_file_idx) != 0) {
+            SPrintf(temp_warning, "Source file name for class [ %s ] does not appear to be a \".java\" file!", LongTypeIdRead(dex_class_defs.class_def[class_idx].class_idx));
+            PrintWarning(temp_warning);
+        }
+    }
+}
+
+//////////////////////////////////////////////////
+// Output error stuff
+//////////////////////////////////////////////////
 
 // It's not really useful to see just the last warning, so inform us how many warnings we should see in output
 if(warnings > 1) {
