@@ -3,7 +3,7 @@
 //
 // File: AXMLTemplate.bt
 // Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.4
+// Revision: 0.5
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,10 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.5 (2015-01-13)
+// ADDED:
+//  - Proper ENUM for string chunks
+//  - Support reading UTF-8 strings
 // Version 0.4 (2015-01-08)
 // ADDED:
 //  - Fixed warnings by preventing zero sized structure
@@ -110,16 +114,26 @@ typedef enum <uint> {
 
 typedef struct {
     uleb128 length;
-    if(uleb128_value(length) != 0) {
-        ubyte data[uleb128_value(length) * 2];
+
+    local int data_size = uleb128_value(length);
+    if(data_size != 0) {
+        local int original_position = FTell();
+        if(ReadByte() == 0x00) {
+            data_size = data_size * 2;
+        } else {
+            FSeek(original_position + 1);
+        }
+        ubyte data[data_size];
     }
 } special_string <read=SpecialStringRead, comment="String Pool">;;
 
 string SpecialStringRead(special_string &item) {
     string s;
     local int i;
-    for(i = 1; i < uleb128_value(item.length) * 2; i += 2) {
-        s = SPrintf(s, "%s%c", s, item.data[i]);
+    for(i = 0; i < sizeof(item.data); i++) {
+        if(item.data[i] != 0x00) {
+            s = SPrintf(s, "%s%c", s, item.data[i]);
+        }
     }
     return s;
 }
@@ -138,8 +152,10 @@ typedef struct (int pool_offset) {
 string PoolItemReader(pool_item &item) {
     string s;
     local int i;
-    for(i = 1; i < uleb128_value(item.string_data.length) * 2; i += 2) {
-        s = SPrintf(s, "%s%c", s, item.string_data.data[i]);
+    for(i = 0; i < sizeof(item.string_data.data); i++) {
+        if(item.string_data.data[i] != 0x00) {
+            s = SPrintf(s, "%s%c", s, item.string_data.data[i]);
+        }
     }
     return s;
 }
@@ -155,12 +171,17 @@ string StringPoolRead(item_pool &l) {
     return s;
 }
 
+typedef enum <uint> {
+    SORTED_FLAG  = 1 << 0,
+    UTF8_FLAG    = 1 << 8
+} string_chunk_flag <format=hex>;
+
 typedef struct {
     CHUNK_TYPE chunk_type;
     uint chunk_size;
     uint string_count;
     uint style_count;
-    uint unknown;
+    string_chunk_flag flags;
     uint string_pool_offset;
     uint style_pool_offset;
     if(string_count != 0) {
