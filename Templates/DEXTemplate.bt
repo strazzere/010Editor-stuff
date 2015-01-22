@@ -4,12 +4,19 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.9
+// Revision: 2.0
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 2.0 (2015-1-22)
+//
+// ADDED:
+//  - Check for data injected inside of dex after the map section.
+//    This was seen ITW; checksum, signature and filesize from the
+//    dex header where set properly to "include" this data.
+//
 // Version 1.9 (2015-1-06)
 //
 // ADDED:
@@ -771,9 +778,9 @@ typedef struct {
 
 typedef struct {
     uint size <comment="Number of entries in type list">;
-     if(size != 0) {
-         type_item list[size] <read=TypeItemRead, comment="Type entry">;
-     }
+    if(size != 0) {
+        type_item list[size] <read=TypeItemRead, comment="Type entry">;
+    }
 } type_item_list <read=TypeItemListRead, optimize=true>;
 
 string TypeItemRead(type_item &t) {
@@ -1318,7 +1325,7 @@ string ClassDataItemRead(class_data_item &i) {
         uleb128_value(i.static_fields_size), uleb128_value(i.instance_fields_size), 
         uleb128_value(i.direct_methods_size), uleb128_value(i.virtual_methods_size));
     return s;
-}   
+}
 
 typedef struct {
     local int64 pos;
@@ -1898,6 +1905,20 @@ if(odex) {
 //////////////////////////////////////////////////
 // Post template completion checks and functions
 //////////////////////////////////////////////////
+
+// Check for code injected before the "end" (according to header) of dex file; hidden after the map section, which must be last
+local int injection_location = dex_header.map_off + (dex_map_list.size * 12) + 4;
+local int injection_size = dex_header.file_size - injection_location;
+if(injection_size > 0) {
+    SPrintf(temp_warning, "There appears to be extra data injected after the map list @ [ %d ] with a size of [ %d ] that is before the end of the dex file.", injection_location, injection_size);
+    PrintWarning(temp_warning);
+
+    SetBackColor(cLtRed);
+    FSeek(injection_location);
+    ubyte injected_data[injection_size];
+}
+
+// Check for source code name removal/obfuscation
 int CheckSourceFileName(int source_file_index) {
     local string temp_str = StringIdRead(source_file_index);
     if(sizeof(temp_str) <= 6) {
@@ -1908,7 +1929,6 @@ int CheckSourceFileName(int source_file_index) {
 
     return Strcmp(temp_str, ".java\"");
 }
-
 if( MessageBox( idYes | idNo,
     "Check for oddities?",
     "Check for source file issues?")
