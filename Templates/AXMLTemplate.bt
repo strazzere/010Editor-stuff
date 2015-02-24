@@ -118,7 +118,7 @@ typedef struct {
     local int data_size = uleb128_value(length);
     if(data_size != 0) {
         local int original_position = FTell();
-        if(ReadByte() == 0x00) {
+        if(ReadByte(FTell()) == 0x00) {
             data_size = data_size * 2;
         } else {
             FSeek(original_position + 1);
@@ -130,6 +130,7 @@ typedef struct {
 string SpecialStringRead(special_string &item) {
     string s;
     local int i;
+    if (!item.data_size) return "(null)";
     for(i = 0; i < sizeof(item.data); i++) {
         if(item.data[i] != 0x00) {
             s = SPrintf(s, "%s%c", s, item.data[i]);
@@ -152,6 +153,7 @@ typedef struct (int pool_offset) {
 string PoolItemReader(pool_item &item) {
     string s;
     local int i;
+    if (!item.string_data.data_size) return "(null)";
     for(i = 0; i < sizeof(item.string_data.data); i++) {
         if(item.string_data.data[i] != 0x00) {
             s = SPrintf(s, "%s%c", s, item.string_data.data[i]);
