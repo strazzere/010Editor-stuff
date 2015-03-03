@@ -217,29 +217,32 @@ string AttributeRead(attribute &i) {
 
     local string uri;
     if(i.uri > 0 && i.uri < 0xFFFFFFFF) {
-        PoolItemReader(strings.stringpool.string_item[i.uri]);
+        uri = PoolItemReader(strings.stringpool.string_item[i.uri-1]);
     }
-    if(Strcmp("", uri) == 0) {
-        uri = "NULL";
+    if(Strcmp("", uri) != 0) {
+        uri = uri + ":";
     }
 
     local string name;
-    if(i.name > 0 && i.name < 0xFFFFFFFF) {
-        PoolItemReader(strings.stringpool.string_item[i.name]);
+    if(i.name < 0xFFFFFFFF) {
+        name = PoolItemReader(strings.stringpool.string_item[i.name]);
     }
-    if(Strcmp("", name) == 0) {
-        name = "NULL";
+    if(Strcmp("", name) != 0) {
+        name = name + " = ";
     }
 
     local string data;
-    if(i.data > 0 && i.data < 0xFFFFFFFF) {
-        data = PoolItemReader(strings.stringpool.string_item[i.data]);
+    if(i.string_data < 0xFFFFFFFF) {
+        data = PoolItemReader(strings.stringpool.string_item[i.string_data]);
+    }
+    else if (i.string_data == 0xFFFFFFFF) {
+        SPrintf(data, "%d", i.data);
     }
     if(Strcmp("", data) == 0) {
         data = "NULL";
     }
     local string s;
-    s = SPrintf(s, "%s : %s : %s", uri, name, data);
+    s = SPrintf(s, "%s%s%s", uri, name, data);
     return s;
 }
 
