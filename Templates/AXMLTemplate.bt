@@ -3,7 +3,7 @@
 //
 // File: AXMLTemplate.bt
 // Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.5
+// Revision: 0.5.1
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,9 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.5.1 (2015-03-09)
+// FIXED:
+//  - ENUM for attribute types was incorrect
 // Version 0.5 (2015-01-13)
 // ADDED:
 //  - Proper ENUM for string chunks
@@ -201,8 +204,8 @@ typedef struct {
 } resource_chunk;
 
 typedef enum <uint> {
-    STRING_TYPE = 0x10000008,
-    INT_TYPE    = 0x03000008
+    INT_TYPE    = 0x10000008,
+    STRING_TYPE = 0x03000008
 } ATTRIBUTE_TYPE <format=hex>;
 
 typedef struct {
