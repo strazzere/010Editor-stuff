@@ -1,0 +1,45 @@
+//--------------------------------------
+//--- 010 Editor v5.0beta2 Binary Template
+//
+// File:     AndroidBackUpTemplate.bt
+// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose:  Quick template for parsing Android Back Ups
+//
+//--------------------------------------
+
+// utility type to show the SHA1 hash in the value column
+typedef ubyte SHA1[20] <read=SHA1Read, format=hex>;
+
+string SHA1Read(SHA1 sig) {
+    string ret;
+    string tmp;
+    int i;
+
+    for(i = 0; i<20; i++) {
+        SPrintf(tmp, "%.2X", sig[i]);
+        ret += tmp;
+    }
+
+    return ret;
+}
+
+typedef struct {
+    string magic <comment="Magic bytes that the file command should use">;
+    if(Strcmp(magic, "ANDROID BACKUP\n") != 0) {
+        return("Doesn't appear to be an Android Back Up file - bailing!\n");
+    }
+
+    string backup_file_format <format=hex, comment="File format version, currently only 0x1 is known">;
+
+    string compressed_flag <format=hex, comment="Flag for the backup being compressed or not">;
+
+    string encryption_algorithm <format=hex, comment="Currently either \"none\" or \"AES-256\"">;
+    if(Strcmp(encryption_algorithm, "none") != 0) {
+        string user_password_salt;
+        string master_key_checksum_salt;
+
+    }
+} Android_Global_File_header;
+
+Android_Global_File_header globalFileHeader;

@@ -1,0 +1,62 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File: SONYCamFirmwareTemplate.bt
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose: A template for Sony Camera Firmware files.
+//
+// License: This file is released into the public domain. People may 
+//          use it for any purpose, commercial or otherwise. 
+//--------------------------------------
+
+LittleEndian();
+
+typedef enum <uint32> {
+    DATV     = 0x44415456, // Unknown as of right now
+    PROV     = 0x50524F56,
+    UDID     = 0x55444944,
+    FDAT     = 0x46444154,
+    DEND = 0x44454E44  // End will follow with CRC
+} chunk_type <format=hex>;
+
+typedef struct {
+
+    // Chunk header
+    BigEndian();
+    uint32 chunk_length;
+    chunk_type type;
+
+    switch(type) {
+    case DATV:
+        char data[4];
+        break;
+    case PROV:
+        char data[4];
+        break;
+    case UDID:
+        // This properly gets all the data
+        // though no idea what it is
+        uint32 count;
+        uint64 data[count];
+        break;
+    case FDAT:
+        // Firmware DATa - encrypted
+        char data[chunk_length];
+        break;
+    case DEND:
+        // Data END - CRC32 of everything above this chunk
+        char crc[4];
+        break;
+    default:
+        return("Hit unknown chunk type!\n");
+    }
+} chunk_data <optimize=false>;
+
+struct {
+    char magic[8] <format=hex>;
+
+    while(FTell() != FileSize()) {
+        chunk_data chunk;
+    }
+} firmware_data;
