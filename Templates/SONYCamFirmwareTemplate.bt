@@ -3,7 +3,7 @@
 //
 // File: SONYCamFirmwareTemplate.bt
 // Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.1
+// Revision: 0.2
 // Purpose: A template for Sony Camera Firmware files.
 //
 // License: This file is released into the public domain. People may 
@@ -12,16 +12,17 @@
 
 LittleEndian();
 
+// From FirmwareArchive::GetChunkType(uchar *)
 typedef enum <uint32> {
     DATV     = 0x44415456, // Unknown as of right now
     PROV     = 0x50524F56,
     UDID     = 0x55444944,
     FDAT     = 0x46444154,
-    DEND = 0x44454E44  // End will follow with CRC
+    DEND     = 0x44454E44, // End will follow with CRC
+    UDIC     = 0x55444943  // Unknown what this should even be?
 } chunk_type <format=hex>;
 
 typedef struct {
-
     // Chunk header
     BigEndian();
     uint32 chunk_length;
@@ -51,12 +52,31 @@ typedef struct {
     default:
         return("Hit unknown chunk type!\n");
     }
-} chunk_data <optimize=false>;
+} chunk <read=ChunkRead, optimize=false>;
+
+string ChunkRead(chunk &data) {
+    switch(data.type) {
+    case DATV:
+        return "DATV";
+    case PROV:
+        return "PROV";
+    case UDID:
+        return "UDID";
+    case FDAT:
+        return "FDAT";
+    case DEND:
+        return "DEND";
+    case UDIC:
+        return "UDIC";
+    default:
+        return("UNKNOWN");
+    }
+}
 
 struct {
     char magic[8] <format=hex>;
 
     while(FTell() != FileSize()) {
-        chunk_data chunk;
+        chunk chunk_data;
     }
 } firmware_data;
