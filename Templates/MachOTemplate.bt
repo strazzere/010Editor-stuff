@@ -7,6 +7,9 @@
 // Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
 //
+// Version 1.4 (2015-03-31)
+//  - Added parsing for data of CODE_SIGNATURE (by Claud Xiao <secmobi@gmail.com>)
+//
 // Version 1.3.1 (2014-05-20)
 //  - Spot fix for PowerPC arch issues, the endianness is not being set
 //    properly. Now the template can "complete" but that section is currently
@@ -892,13 +895,296 @@ string LoadCommandListReader(LoadCommandList &loadCommandList) {
     return s;
 }
 
+// Structures for CodeSignature
+typedef enum <uint> {
+    REQUIREMENT         = 0xfade0c00,
+    REQUIREMENTS        = 0xfade0c01,
+    CODEDIRECTORY       = 0xfade0c02,
+    EMBEDDED_SIGNATURE  = 0xfade0cc0,
+    DETACHED_SIGNATURE  = 0xfade0cc1,
+    BLOB_WRAPPER        = 0xfade0b01,
+    ENTITLEMENT         = 0xfade7171,
+} BlobMagic <format=hex, comment="blob magic">;
+
+typedef struct (uint begin){
+    local uint begin = begin;
+    uint32 type <comment="type of entry">;
+    uint32 offset <format=hex, comment="offset of entry">;
+}BlobIndex <optimize=false, read=BlobIndexReader, comment="blob index">;
+
+string BlobIndexReader(BlobIndex & blobIndex) {
+    local string s;
+    s = SPrintf(s, "offset=0x%x", blobIndex.begin + blobIndex.offset);
+    return s;
+}
+
+typedef struct {
+    local uint begin = FTell();
+    BlobMagic magic;
+    uint32 length;
+    uint32 count <comment="number of index entries following">;
+    BlobIndex index(begin)[count];
+}SuperBlob <optimize=false, read=SuperBlobReader, comment="Super Blob">;
+
+string SuperBlobReader(SuperBlob &superBlob) {
+    local string s;
+    s = SPrintf(s, "%d blobs", superBlob.count);
+    return s;
+}
+
+typedef enum <byte> {
+    kSecCodeSignatureNoHash                     = 0,
+    kSecCodeSignatureHashSHA1                   = 1,
+    kSecCodeSignatureHashSHA256                 = 2,
+    kSecCodeSignatureHashPrestandardSkein160x256 = 32,
+    kSecCodeSignatureHashPrestandardSkein256x512 = 33,
+} HashType <read=HashTypeRead, comment="type of hash algorithm">;
+
+string HashTypeRead(HashType &type) {
+    switch(type) {
+        case kSecCodeSignatureNoHash:
+            return "None";
+        case kSecCodeSignatureHashSHA1:
+            return "SHA-1";
+        case kSecCodeSignatureHashSHA256:
+            return "SHA-256";
+        case kSecCodeSignatureHashPrestandardSkein160x256:
+            return "Skein, 160 bits, 256 bit pool";
+        case kSecCodeSignatureHashPrestandardSkein256x512:
+            return "Skein, 256 bits, 512 bit pool";
+        default:
+            return "<error>";
+    }
+}
+
+typedef struct (int hashSize) {
+    local int size = hashSize;
+    uchar hash[hashSize];
+}HashSlot <optimize=false, read=HashSlotReader, comment="HashSlot">;
+
+string HashSlotReader(HashSlot &hashSlot) {
+    string s = "";
+    local int i;
+    for (i = 0; i < hashSlot.size; i++) 
+        s = SPrintf(s, "%s%02x", s, hashSlot.hash[i]);
+    return s;
+}
+
+string PageSizeReader(ubyte &pageSize) {
+    string s;
+    if (pageSize == 0)
+        s = "infinite";
+    else
+        s = SPrintf(s, "0x%x", 1<<pageSize);
+    return s;
+}
+
+typedef struct {
+    local uint64 begin = FTell();
+    BlobMagic magic;
+    uint32 length;
+    uint32 version<format=hex, comment="compatibility version">;
+    uint32 flag<format=hex, comment="setup and mode flags">;
+    uint32 hashOffset<format=hex, comment="offset of hash slot element at index zero">;
+    uint32 identOffset<format=hex, comment="offset of identifier string">;
+    uint32 nSpecialSlots<comment="number of special hash slots">;
+    uint32 nCodeSlots<comment="number of ordinary (code) hash slots">;
+    uint32 codeLimit <comment="limit to main image signature range">;
+    ubyte hashSize <comment="size of each hash in bytes">;
+    HashType hashType;
+    ubyte unused <comment="unused">;
+    ubyte pageSize <read=PageSizeReader>;
+    uint32 unused <comment="unused">;
+
+    FSkip(identOffset-0x2c);
+    string identifier;
+
+    FSeek(begin + hashOffset - nSpecialSlots * hashSize);
+    HashSlot specialHash(hashSize)[nSpecialSlots];
+    HashSlot codeHash(hashSize)[nCodeSlots];
+
+    local uint64 now = FTell();
+    FSkip(length-(now-begin));
+}CodeDirectory <optimize=false, read=CodeDirectoryReader, comment="CodeDirectory">;
+
+string CodeDirectoryReader(CodeDirectory &codeDirectory) {
+    local string s;
+    s = SPrintf(s, "%d special hashes, %d code hashes", codeDirectory.nSpecialSlots, codeDirectory.nCodeSlots);
+    return s;
+}
+
+typedef struct (int type){
+    local int type = type;
+    local int begin = FTell();
+    BlobMagic magic;
+    uint32 length;
+    uint32 kind <read=RequirementKindReader>;
+    local int now = FTell();
+    if (kind == 1)
+        char prefix_expr[length-(now-begin)] <comment="run \"codesign --display -r- <file>\"">;
+    else
+        FSkip(length-(now-begin));
+} Requirement <optimize=false, read=RequirementReader, comment="Code Requirement">;
+
+string RequirementKindReader(uint32 &kind) {
+    if (kind == 1)
+        return "prefix expr form";
+    else
+        return "unknown";
+}
+
+string RequirementReader(Requirement &requirement) {
+    switch(requirement.type) {
+        case 1:
+            return "what hosts may run us";
+        case 2:
+            return "what guests we may run";
+        case 3:
+            return "designated requirement";
+        case 4:
+            return "what libraries we may link against";
+        case 5:
+            return "what plug-ins we may load";
+        default:
+            return "invalid type of Requirement";
+    }
+}
+
+typedef struct {
+    local uint begin = FTell();
+    BlobMagic magic;
+    uint32 length;
+    uint32 count;
+    BlobIndex index(begin)[count];
+}Requirements <optimize=false, read=RequirementsReader, comment="Requirements">;
+
+string RequirementsReader(Requirements &requirements) {
+    local string s;
+    s = SPrintf(s, "%d requirements", requirements.count);
+    return s;
+}
+
+typedef struct {
+    BlobMagic magic;
+    uint32 length;
+    local int result, size;
+    char data[length-8] <comment="the plist format entitlement">;
+} Entitlement <optimize=false, read=EntitlementReader, comment="Entitlement">;
+
+string EntitlementReader(Entitlement &entitlement) {
+    local string s;
+    s = SPrintf(s, "%d bytes", entitlement.length);
+    return s;
+}
+
+typedef struct {
+    BlobMagic magic;
+    uint32 length;
+    byte data[length-8];
+} BlobWrapper <optimize=false, read=BlobWrapperReader, comment="BlobWrapper">;
+
+string BlobWrapperReader(BlobWrapper &blobWrapper) {
+    local string s;
+    s = SPrintf(s, "certificates");
+    return s;
+}
+
+typedef struct (int sign_offset, int sign_size){
+    local int begin = FTell();
+    FSeek(sign_offset);
+
+    local int is_little = IsLittleEndian();
+    if (is_little)
+        BigEndian();
+
+    local uint i, j;
+    local uint cnt_blob = 0;
+    local uint blob_begin;
+    local uint req_begin = 0;
+    local uint32 magic;
+
+    SuperBlob superBlob;
+    cnt_blob += 1;
+
+    for (i = 0; i < superBlob.count; i++) {
+        blob_begin = sign_offset + superBlob.index[i].offset;
+        FSeek(blob_begin);
+        cnt_blob += 1;
+    
+        magic = ReadInt();
+        switch(magic) {
+            case REQUIREMENT:
+                Requirement requirement;
+                break;
+            case REQUIREMENTS:
+                Requirements requirements;
+                break;
+            case CODEDIRECTORY:
+                CodeDirectory codeDirectory;
+                break;
+            case EMBEDDED_SIGNATURE:
+                SuperBlob superBlob;
+                break;
+            case DETACHED_SIGNATURE:
+                SuperBlob superBlob;
+                break;
+            case BLOB_WRAPPER:
+                BlobWrapper blobWrapper;
+                break;
+            case ENTITLEMENT:
+                Entitlement entitlement;
+                break;
+            default:
+                cnt_blob -= 1;
+                break;
+        }
+    
+        if (magic == REQUIREMENTS) {
+            req_begin = FTell();
+            for (j = 0; j < requirements.count; j++) {
+                FSeek(blob_begin + requirements.index[j].offset);
+                Requirement requirement(requirements.index[j].type);
+                cnt_blob += 1;
+            }
+            FSeek(req_begin);
+        }
+        
+        if (FTell() >= (sign_offset + sign_size))
+            break;
+    }
+
+    if (is_little)  // restore endian
+        LittleEndian();
+} CodeSignature <optimize=false, read=CodeSignatureReader, comment="Code Signature">;
+
+string CodeSignatureReader(CodeSignature &codeSignature) {
+    string s;
+    s = SPrintf(s, "%d blobs", codeSignature.cnt_blob);
+    return s;
+}
+
+
 // Main part of template, kicking off the rest of the structures, etc.
 Header header <comment="Mach-o header information">;
 local uint32 cpu_typer;
+local int j;
+local uint32 sign_offset;
+local uint32 sign_size;
 if(header.magic == MACHO_32 || header.magic == MACHO_64) {
     cpu_typer = header.cpu_type;
     // If we didn't find a FAT header, then just process the load commands
     LoadCommandList loadCommandList(header.num_load_commands);
+
+    sign_offset = 0;
+    sign_size = 0;
+    for (j = 0; j < loadCommandList.list_size; j++) {
+        if (loadCommandList.loadCommand[j].command == CODE_SIGNATURE) {
+            sign_offset = loadCommandList.loadCommand[j].data_offset;
+            sign_size = loadCommandList.loadCommand[j].data_size;
+        }
+    }
+    if ((sign_offset > 0) && (sign_size > 0))
+        CodeSignature codeSignature(sign_offset, sign_size);
 } else {
     // Otherwise we need to grab the new headers again
     local int i;
@@ -913,5 +1199,16 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
         Header machHeader;
         cpu_typer = machHeader.cpu_type;
         LoadCommandList loadCommandList(machHeader.num_load_commands);
+
+        sign_offset = 0;
+        sign_size = 0;
+        for (j = 0; j < loadCommandList.list_size; j++) {
+            if (loadCommandList.loadCommand[j].command == CODE_SIGNATURE) {
+                sign_offset = loadCommandList.loadCommand[j].data_offset;
+                sign_size = loadCommandList.loadCommand[j].data_size;
+            }
+        }
+        if ((sign_offset > 0) && (sign_size > 0))
+            CodeSignature codeSignature(header.fat_arch[i].file_offset + sign_offset, sign_size);
     }
 }
