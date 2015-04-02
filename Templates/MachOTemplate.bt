@@ -1117,7 +1117,9 @@ typedef struct (int sign_offset, int sign_size){
         magic = ReadInt();
         switch(magic) {
             case REQUIREMENT:
-                Requirement requirement;
+                // Requirement shouldn't be directly described by a normal SuperBlob.
+                // If this happened, we manually assign its type to unknown.
+                Requirement requirement(0);
                 break;
             case REQUIREMENTS:
                 Requirements requirements;
