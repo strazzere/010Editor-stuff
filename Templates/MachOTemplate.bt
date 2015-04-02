@@ -910,7 +910,7 @@ typedef struct (uint begin){
     local uint begin = begin;
     uint32 type <comment="type of entry">;
     uint32 offset <format=hex, comment="offset of entry">;
-}BlobIndex <optimize=false, read=BlobIndexReader, comment="blob index">;
+} BlobIndex <optimize=false, read=BlobIndexReader, comment="blob index">;
 
 string BlobIndexReader(BlobIndex & blobIndex) {
     local string s;
@@ -924,7 +924,7 @@ typedef struct {
     uint32 length;
     uint32 count <comment="number of index entries following">;
     BlobIndex index(begin)[count];
-}SuperBlob <optimize=false, read=SuperBlobReader, comment="Super Blob">;
+} SuperBlob <optimize=false, read=SuperBlobReader, comment="Super Blob">;
 
 string SuperBlobReader(SuperBlob &superBlob) {
     local string s;
@@ -933,9 +933,9 @@ string SuperBlobReader(SuperBlob &superBlob) {
 }
 
 typedef enum <byte> {
-    kSecCodeSignatureNoHash                     = 0,
-    kSecCodeSignatureHashSHA1                   = 1,
-    kSecCodeSignatureHashSHA256                 = 2,
+    kSecCodeSignatureNoHash                      = 0,
+    kSecCodeSignatureHashSHA1                    = 1,
+    kSecCodeSignatureHashSHA256                  = 2,
     kSecCodeSignatureHashPrestandardSkein160x256 = 32,
     kSecCodeSignatureHashPrestandardSkein256x512 = 33,
 } HashType <read=HashTypeRead, comment="type of hash algorithm">;
@@ -960,10 +960,10 @@ string HashTypeRead(HashType &type) {
 typedef struct (int hashSize) {
     local int size = hashSize;
     uchar hash[hashSize];
-}HashSlot <optimize=false, read=HashSlotReader, comment="HashSlot">;
+} HashSlot <optimize=false, read=HashSlotReader, comment="HashSlot">;
 
 string HashSlotReader(HashSlot &hashSlot) {
-    string s = "";
+    local string s = "";
     local int i;
     for (i = 0; i < hashSlot.size; i++) 
         s = SPrintf(s, "%s%02x", s, hashSlot.hash[i]);
@@ -971,11 +971,11 @@ string HashSlotReader(HashSlot &hashSlot) {
 }
 
 string PageSizeReader(ubyte &pageSize) {
-    string s;
+    local string s;
     if (pageSize == 0)
         s = "infinite";
     else
-        s = SPrintf(s, "0x%x", 1<<pageSize);
+        s = SPrintf(s, "0x%x", 1 << pageSize);
     return s;
 }
 
@@ -996,7 +996,7 @@ typedef struct {
     ubyte pageSize <read=PageSizeReader>;
     uint32 unused <comment="unused">;
 
-    FSkip(identOffset-0x2c);
+    FSkip(identOffset - 0x2c);
     string identifier;
 
     FSeek(begin + hashOffset - nSpecialSlots * hashSize);
@@ -1004,8 +1004,8 @@ typedef struct {
     HashSlot codeHash(hashSize)[nCodeSlots];
 
     local uint64 now = FTell();
-    FSkip(length-(now-begin));
-}CodeDirectory <optimize=false, read=CodeDirectoryReader, comment="CodeDirectory">;
+    FSkip(length - (now - begin));
+} CodeDirectory <optimize=false, read=CodeDirectoryReader, comment="CodeDirectory">;
 
 string CodeDirectoryReader(CodeDirectory &codeDirectory) {
     local string s;
@@ -1055,8 +1055,10 @@ typedef struct {
     BlobMagic magic;
     uint32 length;
     uint32 count;
-    BlobIndex index(begin)[count];
-}Requirements <optimize=false, read=RequirementsReader, comment="Requirements">;
+    if(count != 0) {
+        BlobIndex index(begin)[count];
+    }
+} Requirements <optimize=false, read=RequirementsReader, comment="Requirements">;
 
 string RequirementsReader(Requirements &requirements) {
     local string s;
@@ -1068,7 +1070,7 @@ typedef struct {
     BlobMagic magic;
     uint32 length;
     local int result, size;
-    char data[length-8] <comment="the plist format entitlement">;
+    char data[length - 8] <comment="the plist format entitlement">;
 } Entitlement <optimize=false, read=EntitlementReader, comment="Entitlement">;
 
 string EntitlementReader(Entitlement &entitlement) {
@@ -1080,7 +1082,7 @@ string EntitlementReader(Entitlement &entitlement) {
 typedef struct {
     BlobMagic magic;
     uint32 length;
-    byte data[length-8];
+    byte data[length - 8];
 } BlobWrapper <optimize=false, read=BlobWrapperReader, comment="BlobWrapper">;
 
 string BlobWrapperReader(BlobWrapper &blobWrapper) {
@@ -1094,8 +1096,9 @@ typedef struct (int sign_offset, int sign_size){
     FSeek(sign_offset);
 
     local int is_little = IsLittleEndian();
-    if (is_little)
+    if (is_little) {
         BigEndian();
+    }
 
     local uint i, j;
     local uint cnt_blob = 0;
@@ -1153,12 +1156,14 @@ typedef struct (int sign_offset, int sign_size){
             break;
     }
 
-    if (is_little)  // restore endian
+    // restore endian
+    if (is_little) {
         LittleEndian();
+    }
 } CodeSignature <optimize=false, read=CodeSignatureReader, comment="Code Signature">;
 
 string CodeSignatureReader(CodeSignature &codeSignature) {
-    string s;
+    local string s;
     s = SPrintf(s, "%d blobs", codeSignature.cnt_blob);
     return s;
 }
@@ -1183,8 +1188,9 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
             sign_size = loadCommandList.loadCommand[j].data_size;
         }
     }
-    if ((sign_offset > 0) && (sign_size > 0))
+    if ((sign_offset > 0) && (sign_size > 0)) {
         CodeSignature codeSignature(sign_offset, sign_size);
+    }
 } else {
     // Otherwise we need to grab the new headers again
     local int i;
@@ -1208,7 +1214,8 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
                 sign_size = loadCommandList.loadCommand[j].data_size;
             }
         }
-        if ((sign_offset > 0) && (sign_size > 0))
+        if ((sign_offset > 0) && (sign_size > 0)) {
             CodeSignature codeSignature(header.fat_arch[i].file_offset + sign_offset, sign_size);
+        }
     }
 }
