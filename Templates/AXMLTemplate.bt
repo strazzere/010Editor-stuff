@@ -206,7 +206,8 @@ typedef struct {
 typedef enum <uint> {
     INT_TYPE      = 0x10000008,
     STRING_TYPE   = 0x03000008,
-    RESOURCE_TYPE = 0x01000008
+    RESOURCE_TYPE = 0x01000008,
+    BOOLEAN_TYPE  = 0x12000008
 } ATTRIBUTE_TYPE <format=hex>;
 
 typedef struct {
