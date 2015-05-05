@@ -209,7 +209,7 @@ typedef enum <uint> {
 } ATTRIBUTE_TYPE <format=hex>;
 
 typedef struct {
-    uint uri  <format=hex>;
+    uint uri;
     uint name;
     uint string_data <format=hex>;
     ATTRIBUTE_TYPE type;
