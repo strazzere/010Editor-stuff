@@ -1,0 +1,25 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File: SKB_SecureDataHeader.bt
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose: Parse an extracted data structure from an SDK I'm evaluating.
+//          If you found this, then you are potentially interested in the
+//          structure and already know what it might be/is for. :)
+//--------------------------------------
+
+BigEndian();
+
+typedef struct {
+    ubyte control_bytes[4] <comment="'Random'">;
+    // Should be an enum
+    ubyte format_version;
+    ubyte key_type[4];
+    uint key_size;
+    ubyte key_version[4];
+    ubyte export_key_id[16];
+} Header;
+
+Header header;
+ubyte exported_content[FileSize() - sizeof(header)];
