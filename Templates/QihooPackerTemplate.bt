@@ -1,0 +1,19 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File: QihooPackerTemplate.pt
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose: Parse the header added at the end of the dex file on
+//          Qihoo360 packed files. Just a WPI while I was doing some
+//          research...
+
+typedef struct {
+    byte qihoo_magic[8];
+    byte junk[0x104];
+    byte key[0x8];
+    byte compression[0x4];
+    byte encryption[0x4];
+} Header;
+
+Header header;
