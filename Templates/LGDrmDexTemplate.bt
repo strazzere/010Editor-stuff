@@ -1,0 +1,73 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File: LGDermDexTemplate.pt
+// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision: 0.1
+// Purpose: Just parsing out some information while doing research
+//          into LG's "almond" crypto drm.
+//--------------------------------------
+
+
+// TODO : Redo all this to just parse it out as a string and
+// seperate it all using skip chars and \r\n seperators
+typedef struct {
+    ubyte encryption_method_key[Strlen("Encryption-Method")];
+    if(Strcmp("Encryption-Method", encryption_method_key) != 0) {
+        Printf("Unexpected encryption method key!\n");
+    }
+    FSkip(2); // Skip ": "
+
+    ubyte encryption_method_value[Strlen("AES128CBC")];
+    if(Strcmp("AES128CBC", encryption_method_value) != 0) {
+        Printf("Unexpected encryption method value!\n");
+    }
+    FSkip(1); // Skip ";"
+
+    ubyte padding_key[Strlen("padding=")];
+    if(Strcmp("padding=", padding_key) != 0) {
+        Printf("Unexpected padding key!\n");
+    }
+
+    ubyte padding_value[Strlen("RFC2630")];
+    if(Strcmp("RFC2630", padding_value) != 0) {
+        Printf("Unexpected padding value!\n");
+    }
+    FSkip(1); // Skip ";"
+
+    ubyte plain_text_length_key[Strlen("plaintextlen=")];
+    if(Strcmp("plaintextlen=", plain_text_length_key) != 0) {
+        Printf("Unexpected plain text length key!\n");
+    }
+
+    ubyte plain_text_length_value[Strlen("0000378580")];
+    FSkip(2); // Skip "; "
+
+    ubyte preload_id_key[Strlen("LGEID")];
+    if(Strcmp("LGEID", preload_id_key) != 0) {
+        Printf("Unexpected preload id!\n");
+    }
+    FSkip(2); // Skip ": "
+
+    ubyte preload_id_value[Strlen("VcYhp0fRX7OSDIKlV2z2u521UTM=")];
+    FSkip(2); // Skip "; "
+} encryption_block;
+
+typedef struct {
+    ubyte version <format=hex, comment="DRM version">;
+    ubyte mime_type_length <format=hex, comment="Mime type length">;
+    ubyte CID_length <format=hex, comment="CID length">;
+    ubyte mime_type[mime_type_length] <format=hex, comment="Mime type">;
+    if(Strcmp("application/octet-stream", mime_type) != 0) {
+        Printf("Unexpected mime-type found!\n");
+    }
+    ubyte CID[CID_length]  <format=hex, comment="CID">;
+    ubyte encryption_header_size; // length of encryption header block
+    ubyte content_length;
+    ubyte one2;
+    ubyte one3;
+    encryption_block encryption_data;
+//    ubyte encryption_header[header_size];
+} Header;
+
+Header header;
