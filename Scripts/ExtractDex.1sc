@@ -1,0 +1,61 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File:        ExtractDex.1sc
+// Author:      Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
+// Revision:    1.0
+// Purpose:     Attempts to find all Dex files inside
+//              of the file it is run on. Then it will copy
+//              from the assumed beginning to and expected end.
+//              The output will be dumped into a newly opened
+//              and unsaved tab.
+//
+//              Use case for me was core dumps and OAT files.
+//
+//              Hopefully people stop complaining that dex files
+//              aren't inside oat files now, yes, even system ones!
+//--------------------------------------
+
+uint GetEndOfDex(uint start)
+{
+    return ReadUInt(start + 8 /* magic length */ 
+                          + 4  /* checksum */
+                          + 20  /* sha1 */);
+}
+
+TFindResults potentialFiles = FindAll("dex\n035");
+
+Printf("Found %d potential dex files.\n", potentialFiles.count);
+
+int i;
+uint dexFile = 0;
+uint dexFileEnd = 0;
+uint origfile = GetFileNum();
+uint newfile;
+for(i = 0; i < potentialFiles.count; i++) {
+    Printf("Found a dex file start @ [ %d ]\n", potentialFiles.start[i]);
+    dexFile = potentialFiles.start[i];
+    dexFileEnd = GetEndOfDex(dexFile);
+    Printf("Found a dex file end @ [ %d ]\n", dexFileEnd);
+
+    if(dexFile == -1 || dexFileEnd == -1) {
+        offset = -1;
+    } else {
+        // Dump to a seperate file
+        newfile = FileNew();
+
+        // Select bytes
+        FileSelect(origfile);
+        SetSelection(dexFile, dexFileEnd);
+        CopyToClipboard();
+
+        // Dump bytes
+        FileSelect(newfile);
+        SetFileInterface("Hex");
+        PasteFromClipboard();
+        Printf("Successfully created a new tab with [ %d ] bytes, which is hopefully an odex file.\n", dexFileEnd - dexFile);
+
+        // Go back to original file
+        FileSelect(origfile);
+    }
+}
