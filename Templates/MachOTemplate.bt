@@ -675,6 +675,7 @@ typedef struct {
                     // TODO : Flesh these guys out
                     case i386_FLOAT_STATE :
                     case i386_EXCEPTION_STATE :
+                        break;
                 }
                 break;
             case CPU_TYPE_X86_64 :
@@ -689,6 +690,7 @@ typedef struct {
                     case x86_FLOAT_STATE64 :
                     case x86_EXCEPTION_STATE64 :
                     case x86_DEBUG_STATE64 :
+                        break;
                 }
                 break;
             case CPU_TYPE_POWERPC :
@@ -706,6 +708,7 @@ typedef struct {
                     case PPC_VECTOR_STATE :
                     case PPC_THREAD_STATE64 :
                     case PPC_EXCEPTION_STATE64 :
+                        break;
                 }
                 break;
             case CPU_TYPE_ARM :
