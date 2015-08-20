@@ -1,0 +1,157 @@
+//--------------------------------------
+//--- 010 Editor v4.0.3 Binary Template
+//
+// File: ISOBMFTemplate.bt
+// Author: @RReverser
+// Revision: 201302261710
+// Purpose: Parse ISO Base Media File Format files (QuickTime, JPEG2000, MPEG-4, etc.)
+//--------------------------------------
+
+BigEndian();
+
+typedef struct
+{
+    uint32 size <hidden = true>;
+    char type[4] <hidden = true>;
+    switch (type)
+    {
+        case "ftyp":
+            char fileType[4] <name = "File type", comment = "http://ftyps.com/">;
+            break;
+
+        case "co64":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 n <hidden = true>;
+            uint64 entries[n] <name = "Chunk offsets">;
+            break;
+
+        case "ctts":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 n <hidden = true>;
+            struct {
+                uint32 sampleCount <name = "Sample count">;
+                uint32 offset <name = "Offset">;
+            } entries[n] <name = "Chunk offsets">;
+            break;
+
+        case "elst":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 n <hidden = true>;
+            struct {
+                uint32 duration <name = "Duration", comment = "In global timescale units">;
+                uint32 mediaTime <name = "Media time", comment = "In trak timescale units">;
+                uint32 playbackSpeed <name = "Playback speed">;
+            } entries[n] <name = "Edit list entries">;
+            break;
+
+        case "fiel":
+            ubyte fields <name = "Scan mode", comment = "1 for progressive scan, 2 for 2:1 interlaced">;
+            ubyte detail <name = "Detail", comment = "https://developer.apple.com/quicktime/icefloe/dispatch019.html#fiel">;
+            break;
+
+        case "hdlr":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            char component_type[4] <name = "Component type">;
+            char subtype[4] <name = "Component subtype">;
+            uint32 manufacturer <name = "Component manufacturer">;
+            uint32 flags <name = "Component flags">;
+            uint32 flags_mask <name = "Component flags mask">;
+            string name <name = "Component name">;
+            break;            
+
+        case "mdhd":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            if (version < 1)
+            {
+                uint32 creation_time <name = "Creation time">;
+                uint32 modification_time <name = "Modification time">;
+            }
+            else
+            {
+                uint64 creation_time <name = "Creation time">;
+                uint64 modification_time <name = "Modification time">;
+            }
+            uint32 time_scale <name = "Time scale">;
+            if (version < 1)
+            {
+                uint32 duration <name = "Duration">;
+            }
+            else
+            {
+                uint64 duration <name = "Duration">;
+            }
+            uint16 lang <name = "Language", format = binary, comment = "ISO-639 language code represented with three 5-bit values (each of which is the ASCII value of the letter minus 0x60)">;
+            uint16 quality <name = "Quality">;
+            break;
+
+        case "stco":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 n <hidden = true>;
+            uint32 entries[n] <name = "Chunk offsets">;
+            break;
+
+        case "stss":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 n <hidden = true>;
+            uint32 entries[n] <name = "Sync samples">;
+            break;
+
+        case "stsz":
+            ubyte version <name = "Version">;
+            ubyte flags[3] <name = "Flags", format = binary>;
+            uint32 uniform_size <name = "Uniform size">;
+            uint32 n <hidden = true>;
+            uint32 entries[n] <name = "Sample sizes">;
+            break;
+
+        case "cmov":
+        case "edts":
+        case "mdia":
+        case "minf":
+        case "moov":
+        case "rmda":
+        case "rmra":
+        case "stbl":
+        case "trak":
+            while (FTell() - startof(this) < size)
+            {
+                struct Atom child;
+            }
+            break;
+
+        default:
+            FSeek(FTell() - 8);
+            break;
+    }
+
+    local int left = size - (FTell() - startof(this));
+    if (left > 0)
+    {
+        ubyte data[left] <format = hex>;
+    }
+}
+Atom <name = GetAtomName, size = GetAtomSize>;
+
+int GetAtomSize(Atom &atom)
+{
+    return ReadUInt(startof(atom));
+}
+
+string GetAtomName(Atom &atom)
+{
+    char type[4];
+    ReadBytes(type, startof(atom) + 4, 4);
+    return type;
+}
+
+while (!FEof())
+{
+    Atom atom;
+}
