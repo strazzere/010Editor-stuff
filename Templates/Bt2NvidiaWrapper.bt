@@ -1,0 +1,48 @@
+//--------------------------------------
+//--- 010 Editor v6.0beta1 Binary Template
+//
+// File:     Bt2NvidiaWrapper.bt
+// Author:   Tim "diff" Strazzere
+//             <diff@lookout.com>
+//             <strazz@gmail.com>
+// Revision: 0.5
+// Purpose:  Quick template for "Bt2" files, which seems to be an Nvidia specific
+//           format for "wrapped" things;
+//            - modem.wrapped
+//            - secondary_boot.wrapped
+//
+//           Not done - more to reverse
+//--------------------------------------
+
+// "Bt2" file ?
+
+typedef enum <uint> {
+    NORM                = 0x0A14E91C,
+    UNKNOWN             = 0x1CE9140A,
+    TRAILER_MAGIC       = 0x1CEB72AB,
+    MODEM               = 0x1CE70100
+} tag <format=hex>;
+
+// Likely meant to be 0x20 bytes large
+typedef struct {
+    // Likely magic bytes appears normally as;
+    // 0x0A14E91C
+    // Seems to be code to check for;
+    //   0x1CE9140A
+    //   0x1CEB72AB "trailer magic"
+    uint tag <format=hex, comment="Magic bytes">;
+    uint length <comment="Length of header">;
+    uint file_size <comment="Size of content after header">;
+    uint file_id;
+    if(length - 0x10 > 0) {
+        byte data[length - 0x10];
+    }
+} header;
+
+typedef struct {
+    header head;
+    byte data[head.file_size - head.length];
+} archive;
+
+
+archive archive_struct;
