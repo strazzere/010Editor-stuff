@@ -14,8 +14,6 @@
 //           Not done - more to reverse
 //--------------------------------------
 
-// "Bt2" file ?
-
 typedef enum <uint> {
     NORM                = 0x0A14E91C,
     UNKNOWN             = 0x1CE9140A,
@@ -23,7 +21,7 @@ typedef enum <uint> {
     MODEM               = 0x1CE70100
 } tag <format=hex>;
 
-// Likely meant to be 0x20 bytes large
+//  0x20 bytes large according to reversing
 typedef struct {
     // Likely magic bytes appears normally as;
     // 0x0A14E91C
