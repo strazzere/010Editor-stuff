@@ -19,7 +19,7 @@ typedef enum <uint> {
     UNKNOWN             = 0x1CE9140A,
     TRAILER_MAGIC       = 0x1CEB72AB,
     MODEM               = 0x1CE70100
-} tag <format=hex>;
+} magic <format=hex>;
 
 //  0x20 bytes large according to reversing
 typedef struct {
@@ -28,7 +28,7 @@ typedef struct {
     // Seems to be code to check for;
     //   0x1CE9140A
     //   0x1CEB72AB "trailer magic"
-    uint tag <format=hex, comment="Magic bytes">;
+    magic tag <format=hex, comment="Magic bytes">;
     uint length <comment="Length of header">;
     uint file_size <comment="Size of content after header">;
     uint file_id;
