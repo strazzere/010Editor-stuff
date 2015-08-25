@@ -15,9 +15,12 @@
 //--------------------------------------
 
 typedef enum <uint> {
-    NORM                = 0x0A14E91C,
-    UNKNOWN             = 0x1CE9140A,
-    TRAILER_MAGIC       = 0x1CEB72AB,
+    UNKNOWN             = 0x0A14E91C,
+    // Head of both modem and secondary
+    NORMAL              = 0x1CE9140A,
+    BT2_BOOTMAGIC       = 0x1CE8060A,
+    // Found right before xml in seconardy_boot.wrapped
+    BT2_TRAILER_MAGIC   = 0x1CEB72AB,
     MODEM               = 0x1CE70100
 } magic <format=hex>;
 
@@ -32,14 +35,26 @@ typedef struct {
     uint length <comment="Length of header">;
     uint file_size <comment="Size of content after header">;
     uint file_id;
+
     if(length - 0x10 > 0) {
         byte data[length - 0x10];
     }
 } header;
 
 typedef struct {
+    magic tag <format=hex, comment="Magic bytes tag">;
+    uint length <comment="Length of BT2 Trailer XML">;
+    if(length > 0) {
+        byte xml_data[length];
+    }
+} BT2Trailer;
+
+typedef struct {
     header head;
-    byte data[head.file_size - head.length];
+    if(head.length + head.file_size != FileSize()) {
+        Warning("File size does not seem correct according to header, expected %d but have %d", head.file_size, FileSize());
+    }
+    //byte data[head.file_size - head.length];
 } archive;
 
 
