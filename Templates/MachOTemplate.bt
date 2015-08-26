@@ -2,10 +2,16 @@
 //--- 010 Editor v3.2.2 Binary Template
 //
 // File:     MachOTemplate.bt
-// Author:   Tim "diff" Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 1.3.1
+// Author:   Tim "diff" Strazzere
+//             <diff@lookout.com>
+//             <strazz@gmail.com>
+// Revision: 1.5
 // Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
 //--------------------------------------
+//
+// Version 1.5 (2015-08-26)
+//  - Add enum for cpu type
+//  - Remove constants and constant hack
 //
 // Version 1.4 (2015-03-31)
 //  - Added parsing for data of CODE_SIGNATURE (by Claud Xiao <secmobi@gmail.com>)
@@ -60,19 +66,29 @@ typedef enum <uint> {
     MACHO_FAT_CIGAM = 0xBEBAFECA
 } Magic <format=hex>;
 
-#define CPU_ARCH_MASK       0xff000000
-#define CPU_ARCH_ABI64      0x01000000
-
-// This looks ugly due to a limitation (bug?) in 010Editor template processing,
-// basically we're unable to define more constant using other constants - it doesn't
-// see them as already being processed when trying to define others (though it won't
-// error on this until it hits this when trying to access that constant)
-#define CPU_TYPE_X86        0x7
-#define CPU_TYPE_I386       0x7 // CPU_TYPE_X86
-#define CPU_TYPE_X86_64     (0x7 | 0x01000000) // (CPU_TYPE_X86 | CPU_ARCH_ABI64)
-#define CPU_TYPE_POWERPC    0x12
-#define CPU_TYPE_POWERPC64  (0x12 | 0x01000000) // (CPU_TYPE_POWERPC | CPU_ARCH_ABI64)
-#define CPU_TYPE_ARM        0xC
+// http://www.opensource.apple.com/source/xnu/xnu-792.13.8/osfmk/mach/machine.h
+typedef enum <uint32> {
+    VAX               = 0x1,
+/*  SKIP                0x2 */
+/*  SKIP                0x3 */
+/*  SKIP                0x4 */
+/*  SKIP                0x5 */
+    MC680x0           = 0x6,
+    X86_OR_I386       = 0x7,
+    X86_64            = (0x7 | 0x01000000),
+    MIPS              = 0x8,
+/*  SKIP                0x9 */
+    MC98000           = 0xA,
+    HPPA              = 0xB,
+    ARM               = 0xC,
+    MC88000           = 0xD,
+    SPARC             = 0xE,
+    I860              = 0xF,
+    ALPHA             = 0x10,
+/*  SKIP                0x11 */
+    POWERPC           = 0x12,
+    POWERPC64         = (0x12 | 0x01000000)
+} CpuType;
 
 typedef enum <uint> {
     MACH_OBJECT       = 0x1,
@@ -266,7 +282,7 @@ typedef enum <uint> {
 } Flags;
 
 typedef struct {
-    uint32 cpu_type <comment="CPU specifier", format=hex>;
+    CpuType cpu_type <comment="CPU specifier", format=hex>;
     // TODO : Extract out capabilities here
     uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
     uint32 file_offset  <comment="Offset of header in file">;
@@ -285,7 +301,7 @@ typedef struct {
         // Switch back to LittleEndian for rest of parsing
         LittleEndian();
     } else {
-        uint32 cpu_type <comment="CPU specifier", format=hex>;
+        CpuType cpu_type <comment="CPU specifier", format=hex>;
         uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
         FileType file_type;
         uint32 num_load_commands;
@@ -664,8 +680,7 @@ typedef struct {
     case UNIX_THREAD :
     case THREAD :
         switch(cpu_typer) {
-            case CPU_TYPE_X86 :
-            case CPU_TYPE_I386 :
+            case X86_OR_I386 :
                 i386ThreadFlavor flavor;
                 // TODO : Pretty print this
                 uint32 count;
@@ -678,7 +693,7 @@ typedef struct {
                         break;
                 }
                 break;
-            case CPU_TYPE_X86_64 :
+            case X86_64 :
                 x86ThreadFlavor flavor;
                 // TODO : Pretty print this
                 uint32 count;
@@ -693,8 +708,8 @@ typedef struct {
                         break;
                 }
                 break;
-            case CPU_TYPE_POWERPC :
-            case CPU_TYPE_POWERPC64 :
+            case POWERPC :
+            case POWERPC64 :
                 PPCThreadFlavor flavor;
                 // TODO : Pretty print this
                 uint32 count;
@@ -711,7 +726,7 @@ typedef struct {
                         break;
                 }
                 break;
-            case CPU_TYPE_ARM :
+            case ARM :
                 ARMThreadFlavor flavor;
                 uint32 count;
                 ARMThreadState threadState;
@@ -1176,7 +1191,7 @@ string CodeSignatureReader(CodeSignature &codeSignature) {
 
 // Main part of template, kicking off the rest of the structures, etc.
 Header header <comment="Mach-o header information">;
-local uint32 cpu_typer;
+local CpuType cpu_typer;
 local int j;
 local uint32 sign_offset;
 local uint32 sign_size;
@@ -1201,8 +1216,8 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
     local int i;
     for(i = 0; i < header.fat_arch_size; i++) {
         FSeek(header.fat_arch[i].file_offset);
-        if(header.fat_arch[i].cpu_type == CPU_TYPE_POWERPC ||
-            header.fat_arch[i].cpu_type == CPU_TYPE_POWERPC64) {
+        if(header.fat_arch[i].cpu_type == POWERPC ||
+            header.fat_arch[i].cpu_type == POWERPC64) {
             BigEndian();
         } else {
             LittleEndian();
