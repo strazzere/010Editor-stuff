@@ -5,9 +5,15 @@
 // Author:   Tim "diff" Strazzere
 //             <diff@lookout.com>
 //             <strazz@gmail.com>
-// Revision: 1.5
-// Purpose:  Quick template for parsing Macho-o binaries, pretty much fully working!
+// Revision: 1.5.1
+// Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.5.1 (2015-08-26)
+//  - Add extra LoadCommands which where missing;
+//     - LC_ENCRYPTION_INFO_64
+//     - LC_LINKER_OPTION
+//     - LC_OPTIMIZATION_HUNT
 //
 // Version 1.5 (2015-08-26)
 //  - Add enum for cpu type
@@ -350,35 +356,38 @@ typedef enum <uint> {
     ID_DYLIB                = 0xD,
     LOAD_DYLINKER           = 0xE,
     ID_DYLINKER             = 0xF,
-    PREBOUND_DYLIB          = 0x10,
-    ROUTINES                = 0x11,
-    SUB_FRAMEWORK           = 0x12,
-    SUB_UMBRELLA            = 0x13,
-    SUB_CLIENT              = 0x14,
-    SUB_LIBRARY             = 0x15,
-    TWOLEVEL_HINTS          = 0x16,
-    PREBIND_CKSUM           = 0x17,
-    LOAD_WEAK_DYLIB         = 0x18 | REQ_DYLD,
-    SEGMENT_64              = 0x19,
-    ROUTINES_64             = 0x1A,
-    UUID                    = 0x1B,
-    RPATH                   = 0x1C | REQ_DYLD,
-    CODE_SIGNATURE          = 0x1D, // LinkeditDataCommand
-    SEGMENT_SPLIT_INFO      = 0x1E, // LinkeditDataCommand
-    REEXPORT_DYLIB          = 0x1F | REQ_DYLD,
-    LAZY_LOAD_DYLIB         = 0x20,
-    ENCRYPTION_INFO         = 0x21,
-    DYLD_INFO               = 0x22,
-    DYLD_INFO_ONLY          = 0x22 | REQ_DYLD,
-    LOAD_UPWARD_DYLIB       = 0x23 | REQ_DYLD,
-    VERSION_MIN_MAC_OSX     = 0x24,
-    VERSION_MIN_IPHONE_OS   = 0x25,
-    FUNCTION_STARTS         = 0x26, // LinkeditDataCommand
-    DYLD_ENVIRONMENT        = 0x27,
-    MAIN                    = 0x28 | REQ_DYLD,
-    DATA_IN_CODE            = 0x29,
-    SOURCE_VERSION          = 0x2A,
-    DYLIB_CODE_SIGN_DRS     = 0x2B
+    PREBOUND_DYLIB           = 0x10,
+    ROUTINES                 = 0x11,
+    SUB_FRAMEWORK            = 0x12,
+    SUB_UMBRELLA             = 0x13,
+    SUB_CLIENT               = 0x14,
+    SUB_LIBRARY              = 0x15,
+    TWOLEVEL_HINTS           = 0x16,
+    PREBIND_CKSUM            = 0x17,
+    LOAD_WEAK_DYLIB          = 0x18 | REQ_DYLD,
+    SEGMENT_64               = 0x19,
+    ROUTINES_64              = 0x1A,
+    UUID                     = 0x1B,
+    RPATH                    = 0x1C | REQ_DYLD,
+    CODE_SIGNATURE           = 0x1D, // LinkeditDataCommand
+    SEGMENT_SPLIT_INFO       = 0x1E, // LinkeditDataCommand
+    REEXPORT_DYLIB           = 0x1F | REQ_DYLD,
+    LAZY_LOAD_DYLIB          = 0x20,
+    ENCRYPTION_INFO          = 0x21,
+    DYLD_INFO                = 0x22,
+    DYLD_INFO_ONLY           = 0x22 | REQ_DYLD,
+    LOAD_UPWARD_DYLIB        = 0x23 | REQ_DYLD,
+    VERSION_MIN_MAC_OSX      = 0x24,
+    VERSION_MIN_IPHONE_OS    = 0x25,
+    FUNCTION_STARTS          = 0x26, // LinkeditDataCommand
+    DYLD_ENVIRONMENT         = 0x27,
+    MAIN                     = 0x28 | REQ_DYLD,
+    DATA_IN_CODE             = 0x29,
+    SOURCE_VERSION           = 0x2A,
+    DYLIB_CODE_SIGN_DRS      = 0x2B,
+    ENCRYPTION_INFO_64       = 0x2C,
+    LINKER_OPTION            = 0x2D,
+    LINKER_OPTIMIZATION_HINT = 0x2E,
 } LoadCommandType <read=LoadCommandTypeRead>;
 
 string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
@@ -471,6 +480,12 @@ string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
             return "SOURCE_VERSION";
         case DYLIB_CODE_SIGN_DRS :
             return "DYLIB_CODE_SIGN_DRS";
+        case ENCRYPTION_INFO_64 :
+            return "ENCRYPTION_INFO_64";
+        case LINKER_OPTION :
+            return "LINKER_OPTION";
+        case LINKER_OPTIMIZATION_HINT :
+            return "LINKER_OPTIMIZATION_HINT";
         default :
             return "Error";
     }
@@ -887,6 +902,18 @@ typedef struct {
     case MAIN :
         uint64 entry_offset;
         uint64 stack_size;
+        break;
+    case ENCRYPTION_INFO_64 :
+        uint32 crypto_offset;
+        uint32 crypto_size;
+        uint32 crypto_id;
+        uint32 pad;
+        break;
+    case LINKER_OPTION :
+        uint32 count;
+        break;
+    case LINKER_OPTIMIZATION_HINT :
+        // TODO : Parse optimiations
         break;
     default :
         Warning("Hit an unknown or unsupported load command : [%d]", command);
