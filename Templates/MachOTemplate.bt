@@ -5,9 +5,12 @@
 // Author:   Tim "diff" Strazzere
 //             <diff@lookout.com>
 //             <strazz@gmail.com>
-// Revision: 1.5.1
+// Revision: 1.5.2
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.5.2 (2015-08-28)
+//  - Add CpuSubType structs
 //
 // Version 1.5.1 (2015-08-26)
 //  - Add extra LoadCommands which where missing;
@@ -80,7 +83,8 @@ typedef enum <uint32> {
 /*  SKIP                0x4 */
 /*  SKIP                0x5 */
     MC680x0           = 0x6,
-    X86_OR_I386       = 0x7,
+    X86               = 0x7,
+    I386              = 0x7,
     X86_64            = (0x7 | 0x01000000),
     MIPS              = 0x8,
 /*  SKIP                0x9 */
@@ -96,6 +100,88 @@ typedef enum <uint32> {
     POWERPC64         = (0x12 | 0x01000000)
 } CpuType;
 
+/* Enums can't start with a number, prefix with _ */
+typedef enum <uint32> {
+    I386_ALL          = 0x3,
+    _386              = 0x3,
+    _486              = 0x4,
+    _486SX            = 0x84,
+    _586              = 0x5,
+    PENT              = 0x5,
+    PENTPRO           = 0x16,
+    PENTII_M3         = 0x36,
+    PENTII_M5         = 0x56,
+    CELERON           = 0x67,
+    CELERON_MOBILE    = 0x77,
+    PENTIUM_3         = 0x08,
+    PENTIUM_3_M       = 0x18,
+    PENTIUM_3_XEON    = 0x28,
+    PENTIUM_M         = 0x09,
+    PENTIUM_4         = 0x0A,
+    PENTIUM_4_M       = 0x1A,
+    ITANIUM           = 0x0B,
+    ITANIUM_2         = 0x1B,
+    XEON              = 0x0C,
+    XEON_MP           = 0x1C,
+
+    X86_ALL           = 0x3,
+    X86_64_ALL        = 0x3,
+    X86_ARCH1         = 0x4,
+    X86_64_H          = 0x8
+} CpuSubTypeX86 <format=hex>;
+
+typedef enum <uint32> {
+    INTEL_MODEL_ALL  = 0x0,
+    INTEL_FAMILY_MAX = 0xF
+} CpuSubTypeIntel <format=hex>;
+
+typedef enum <uint32> {
+    ARM_ALL          = 0x0,
+/*  SKIP               0x1 */
+/*  SKIP               0x2 */
+/*  SKIP               0x3 */
+/*  SKIP               0x4 */
+    ARM_V4T          = 0x5,
+    ARM_V6           = 0x6,
+    ARM_V5           = 0x7,
+    ARM_V5TEJ        = 0x7,
+    ARM_XSCALE       = 0x8,
+    ARM_V7           = 0x9,
+/*  ARM_V7F (unused)   0xA */
+    ARM_V7S          = 0xB,
+    ARM_V7K          = 0xC,
+/*  SKIP               0xD */
+    ARM_V6M          = 0xE,
+    ARM_V7M          = 0xF,
+    ARM_V7EM         = 0x10
+} CpuSubTypeARM <format=hex>;
+
+typedef enum <uint32> {
+    ARM64_ALL          = 0x0
+} CpuSubTypeARM64 <format=hex>;
+
+typedef enum <uint32> {
+    SPARC_ALL          = 0x0
+} CpuSubTypeSPARC <format=hex>;
+
+typedef enum <uint32> {
+    POWERPC_ALL        = 0x0,
+/*  MC980000_ALL       = POWERPC_ALL */
+    POWERPC_601        = 0x1,
+/*  MC98601            = POWERPC_601 */
+    POWERPC_602        = 0x2,
+    POWERPC_603        = 0x3,
+    POWERPC_603e       = 0x4,
+    POWERPC_603ev      = 0x5,
+    POWERPC_604        = 0x6,
+    POWERPC_604e       = 0x7,
+    POWERPC_620        = 0x8,
+    POWERPC_750        = 0x9,
+    POWERPC_7400       = 0xA,
+    POWERPC_7450       = 0xB,
+    POWERPC_970        = 0x64
+} CpuSubTypePowerPC <format=hex>;
+
 typedef enum <uint> {
     MACH_OBJECT       = 0x1,
     MACH_EXECUTE      = 0x2,
@@ -107,7 +193,7 @@ typedef enum <uint> {
     MACH_BUNDLE       = 0x8,
     MACH_DYLIB_STUB   = 0x9,
     MACH_DSYM         = 0xA,
-    MACH_KEXT_BUNDLE  = 0xB,
+    MACH_KEXT_BUNDLE  = 0xB
 } FileType;
 
 typedef enum <uint> {
@@ -289,8 +375,17 @@ typedef enum <uint> {
 
 typedef struct {
     CpuType cpu_type <comment="CPU specifier", format=hex>;
-    // TODO : Extract out capabilities here
-    uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
+    switch(cpu_type) {
+        case X86 :
+        case I386 :
+            CpuSubTypeX86 cpu_sub_type <comment="Machine specifier", format=hex>;
+            break;
+        case ARM :
+            CpuSubTypeARM cpu_sub_type <comment="Machine specifier", format=hex>;
+            break;
+        default :
+        uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
+    }
     uint32 file_offset  <comment="Offset of header in file">;
     uint32 size  <comment="Size of object file">;
     uint32 align  <comment="alignment as a power of two">;
@@ -308,7 +403,17 @@ typedef struct {
         LittleEndian();
     } else {
         CpuType cpu_type <comment="CPU specifier", format=hex>;
-        uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
+        switch(cpu_type) {
+            case X86 :
+            case I386 :
+                CpuSubTypeX86 cpu_sub_type <comment="Machine specifier", format=hex>;
+                break;
+            case ARM :
+                CpuSubTypeARM cpu_sub_type <comment="Machine specifier", format=hex>;
+                break;
+            default :
+            uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
+        }
         FileType file_type;
         uint32 num_load_commands;
         uint32 size_of_load_commands;
@@ -695,7 +800,8 @@ typedef struct {
     case UNIX_THREAD :
     case THREAD :
         switch(cpu_typer) {
-            case X86_OR_I386 :
+            case X86 :
+            case I386 :
                 i386ThreadFlavor flavor;
                 // TODO : Pretty print this
                 uint32 count;
