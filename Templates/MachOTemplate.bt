@@ -424,6 +424,7 @@ typedef struct {
     }
 } Header <read=HeaderRead, optimize=false>;
 
+// TODO : Add instruction set to this (ex: ARM/etc)
 string HeaderRead(Header &header) {
     local string header_string;
     switch(header.magic) {
