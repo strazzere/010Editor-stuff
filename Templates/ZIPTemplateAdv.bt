@@ -678,7 +678,7 @@ while( !FEof() )
         }
 
         // JAR's should all have this extra field on the first entry
-        if(record.frExtraFieldLength > 0 && isJar != 1)
+        if(record.frExtraFieldLength > 2 && isJar != 1)
             if(record.frExtraField.efHeaderID == EH_CAFE)
                 isJar = 1;
         if(isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
@@ -693,8 +693,9 @@ while( !FEof() )
                 Printf("Pointing at %d\n", FTell());
             }
         }
-
-        if(!isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
+        
+        // Only read the data descriptor if bit 3 of the flags is set. Otherwise there is no data descriptor present!
+        if(!isJar && ((record.frFlags >> 4) & 1) && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
         {
             Printf("Doesn't appear to jar, but going to attempt to parse as one; skipping to dataDescription\n");
             // Skip data if need be, since a JAR doesn't properly set the
