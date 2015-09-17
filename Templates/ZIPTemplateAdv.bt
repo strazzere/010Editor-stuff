@@ -678,7 +678,7 @@ while( !FEof() )
         }
 
         // JAR's should all have this extra field on the first entry
-        if(record.frExtraFieldLength > 2 && isJar != 1)
+        if(record.frExtraFieldLength > 0 && isJar != 1)
             if(record.frExtraField.efHeaderID == EH_CAFE)
                 isJar = 1;
         if(isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
