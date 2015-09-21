@@ -693,8 +693,9 @@ while( !FEof() )
                 Printf("Pointing at %d\n", FTell());
             }
         }
-
-        if(!isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
+        
+        // Only read the data descriptor if bit 3 of the flags is set. Otherwise there is no data descriptor present!
+        if(!isJar && (record.frFlags & FLAG_DescriptorUsedMask) && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
         {
             Printf("Doesn't appear to jar, but going to attempt to parse as one; skipping to dataDescription\n");
             // Skip data if need be, since a JAR doesn't properly set the
