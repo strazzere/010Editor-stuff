@@ -1,15 +1,20 @@
 //--------------------------------------
-//--- 010 Editor v3.1.3 - v5.0beta2 Binary Template
+//--- 010 Editor v3.1.3 - v6.0.2 Binary Template
 //
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
-//         Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 2.0
+//         Tim Strazzere <strazz@gmail.com>
+// Revision: 2.1
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 2.1 (2015-9-17)
+//
+// FIXED:
+//  - Check bounds on debug information offset found inside code_items.
+//
 // Version 2.0 (2015-1-22)
 //
 // ADDED:
@@ -686,7 +691,7 @@ typedef struct {
     // This is a potentially sloppy way of getting the size of the section to be checksum'ed,
     // though I haven't bothered to look up how the padding is done on the end of the
     // deps + opt section
-    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, deps_offset,FileSize() - deps_offset, -1, -1);
+    local uint temp_checksum = Checksum(CHECKSUM_ADLER32, deps_offset, FileSize() - deps_offset, -1, -1);
     if(temp_checksum != ReadUInt(FTell())) {
         SetBackColor(cLtRed);
         SPrintf(temp_warning, "Alder32 checksum for optimized dependancies did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
@@ -1447,11 +1452,17 @@ typedef struct {
     uint debug_info_off <comment="File offset for the debug information">;
 
     if(debug_info_off != 0) {
-        local int64 pos = FTell();
-        FSeek(odexpad + debug_info_off);
+        if(odexpad + debug_info_off > FileSize()) {
+            PrintWarning("Debug info offset appears to be outside of file bounds - skipping!");
+        } else if(odexpad + debug_info_off < 0) {
+            PrintWarning("Debug info offset appears to be before file bounds - skipping!");
+        } else {
+            local int64 pos = FTell();
+            FSeek(odexpad + debug_info_off);
 
-        struct debug_info_item debug_info <comment="Debug information for this method">;
-        FSeek(pos);
+            struct debug_info_item debug_info <comment="Debug information for this method">;
+            FSeek(pos);
+        }
     }
 
     uint insns_size <comment="Size of instruction list, in 16-bit code units">;
