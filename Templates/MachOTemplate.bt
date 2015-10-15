@@ -69,7 +69,8 @@
 //
 //
 
-// Mach-o's should be Little Endian only -- except for the fat_header/fat_archLittleEndian();
+// Mach-o's should be Little Endian only -- except for the fat_header/fat_arch
+LittleEndian();
 
 typedef enum <uint> {
     MACHO_32        = 0xFEEDFACE, // 32-bit mach object file
@@ -1051,7 +1052,7 @@ typedef struct (int offset, int size){
         FSeek(blob_begin);
         cnt_blob += 1;
 
-        magic = ReadInt();
+        magic = ReadInt(blob_begin);
         switch(magic) {
             case REQUIREMENT:
                 // Requirement shouldn't be directly described by a normal SuperBlob.
@@ -1475,7 +1476,7 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
                 break;
             case SYM_TAB :
                     previous_position = FTell();
-                    SymbolTable symbolTable(machHeader[arch_num].magic,
+                    SymbolTable symbolTable(header.magic,
                                             loadCommandList.loadCommand[i].symbol_table_offset,
                                             loadCommandList.loadCommand[i].number_of_symbol_table_entries,
                                             loadCommandList.loadCommand[i].string_table_offset,
