@@ -4,12 +4,17 @@
 // File: DEXTemplate.bt
 // Author: Jon Larimer <jlarimer@gmail.com>
 //         Tim Strazzere <strazz@gmail.com>
-// Revision: 2.1
+// Revision: 2.1.1
 // Purpose: A template for analyzing Dalvik VM (Android) DEX files
 //
 // License: This file is released into the public domain. People may 
 //          use it for any purpose, commercial or otherwise. 
 //--------------------------------------
+// Version 2.1.1 (2015-10-17)
+//
+// FIXED:
+//  - Annotation item's should note be optimized and have a correct
+//    size of 4, not 12. Thanks jcase!
 // Version 2.1 (2015-9-17)
 //
 // FIXED:
@@ -1058,7 +1063,7 @@ typedef struct {
         FSeek(pos);
     }
 
-} annotation_off_item <read=AnnotationOffItemRead, optimize=true, size=12>;
+} annotation_off_item <read=AnnotationOffItemRead, optimize=false, size=4>;
 
 string AnnotationOffItemRead(annotation_off_item &i) {
     if(exists(i.item)) {
