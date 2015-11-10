@@ -513,10 +513,19 @@ typedef struct {
 	if( deFileNameLength > 0 )
 		char     deFileName[ deFileNameLength ];
 	local int len = deExtraFieldLength;
+
 	while (len > 0)
 	{
-		EXTRAFIELD deExtraField;
-		len -= deExtraField.efDataSize + 4;
+        Printf("at --> %d\n", FTell());
+	    EXTRAFIELD deExtraField;
+        if(deExtraField.efHeaderID != EH_NO_HEADER){
+            // If there was a proper header, skip 4 Bytes (Header+Size) plus the data
+	        len -= deExtraField.efDataSize + 4;
+        }
+        else{
+            // If the efHeaderID is a NO_HEADER, there is no size and no data
+            len -= 2;
+        }
 	}
 	if( deFileCommentLength > 0 )
 		uchar    deFileComment[ deFileCommentLength ];
