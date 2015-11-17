@@ -81,7 +81,8 @@ typedef enum <uchar> {
 typedef enum <uchar> {
     ELFOSABI_NONE       = 0x0,	//No extensions or unspecified	
     ELFOSABI_HPUX       = 0x1,	//Hewlett-Packard HP-UX	
-    ELFOSABI_NETBSD     = 0x2,	//NetBSD	
+    ELFOSABI_NETBSD     = 0x2,	//NetBSD
+    ELFOSABI_LINUX      = 0x3, //Linux
     ELFOSABI_SOLARIS    = 0x6,	//Sun Solaris	
     ELFOSABI_AIX        = 0x7,	//AIX	
     ELFOSABI_IRIX       = 0x8,	//IRIX	
