@@ -1,0 +1,25 @@
+//--------------------------------------
+//--- 010 Editor v6.0.2 Binary Template
+//
+// File: CrisisTemplate.pt
+// Author: Tim 'Diff' Strazzere <diff@sentinelone.com> <strazz@gmail.com>
+// Revision: 1.0
+// Purpose: For quick parameter parsing of Crisis binaries. Will start the
+//          template where the current cursor is in the file.
+//--------------------------------------
+
+
+typedef struct {
+    uint32 version;
+    char build[16];
+    char subtype[16];
+    unsigned char evidencekey[32];
+    unsigned char confkey[32];
+    unsigned char signature[32];
+    unsigned char watermark[32];
+    unsigned char demo[24];
+    unsigned char info[256];
+} Crisis_params;
+
+FSeek(GetCursorPos());
+Crisis_params params;
