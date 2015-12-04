@@ -864,7 +864,7 @@ struct {
               section_name_block_off = ReadUInt( section_name_off  + 2 * sizeof( Elf32_Word ) +
                    sizeof( Elf32_Xword ) + sizeof( Elf32_Addr ) );
         else {
-            Warning("Invalid section header found, skipped and attempting to continue...");
+            PrintWarning("Invalid section header found, skipped and attempting to continue...");
         }
     } else {
         if( FileSize() >= section_name_off  + 2 * sizeof( Elf64_Word ) +
@@ -872,7 +872,7 @@ struct {
               section_name_block_off = ReadUQuad( section_name_off  + 2 * sizeof( Elf64_Word ) +
                    sizeof( Elf64_Xword ) + sizeof( Elf64_Addr ) );
         else {
-            Warning("Invalid section header found, skipped and attempting to continue...");
+            PrintWarning("Invalid section header found, skipped and attempting to continue...");
         }
     }
 
