@@ -4,10 +4,14 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <strazz@gmail.com>
-// Revision: 2.5
+// Revision: 2.5.1
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
+//
+// Version 2.5.1
+// FIXED:
+//  - Some typos and added a out of bounds check
 //
 // Version 2.5
 // ADDED/FIXED:
@@ -454,7 +458,7 @@ typedef struct {  //64bit
     Elf64_Xword p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in ram">;
     Elf64_Xword p_align <comment="Segment alignment">;
 
-    if( p_filesz_SEGMENT_FILE_LENGTH > 0 ) {
+    if( p_filesz_SEGMENT_FILE_LENGTH > 0 && p_offset_FROM_FILE_BEGIN + p_filesz_SEGMENT_FILE_LENGTH < FileSize() ) {
         FSeek(p_offset_FROM_FILE_BEGIN);
         char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
     }
@@ -589,7 +593,7 @@ typedef struct {  //64bit
 
         char            data[s_size];
     }
-    FSeek(off + file.elf_header.e_shentzise_SECTION_HEADER_ENTRY_SIZE);
+    FSeek(off + file.elf_header.e_shentsize_SECTION_HEADER_ENTRY_SIZE);
 } section_table_entry64_t <optimize=false>;
 // Section Table 32/64 bit
 typedef struct {  //32bit 
@@ -611,7 +615,7 @@ typedef struct {  //32bit
 
         char            s_data[s_size];
     }
-    FSeek(off + file.elf_header.e_shentzise_SECTION_HEADER_ENTRY_SIZE);
+    FSeek(off + file.elf_header.e_shentsize_SECTION_HEADER_ENTRY_SIZE);
 } section_table_entry32_t <read=SectionName32,optimize=false>;
 
 string SectionName64( section_table_entry64_t &sect ) {
@@ -816,7 +820,7 @@ struct {
             Elf32_Half     e_ehsize_ELF_HEADER_SIZE <comment="ELF Header size in bytes">;
             Elf32_Half     e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE <comment="Program header table entry size">;
             Elf32_Half     e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES <comment="Program header table entry count">;
-            Elf32_Half     e_shentzise_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
+            Elf32_Half     e_shentsize_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
             Elf32_Half     e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES <comment="Section header table entry count">;
             Elf32_Half     e_shtrndx_STRING_TABLE_INDEX <comment="Section header string table index">;
         }
@@ -833,7 +837,7 @@ struct {
             Elf64_Half     e_ehsize_ELF_HEADER_SIZE <comment="ELF Header size in bytes">;
             Elf64_Half     e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE <comment="Program header table entry size">;
             Elf64_Half     e_phnum_NUMBER_OF_PROGRAM_HEADER_ENTRIES <comment="Program header table entry count">;
-            Elf64_Half     e_shentzise_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
+            Elf64_Half     e_shentsize_SECTION_HEADER_ENTRY_SIZE <comment="Section header table entry size">;
             Elf64_Half     e_shnum_NUMBER_OF_SECTION_HEADER_ENTRIES <comment="Section header table entry count">;
             Elf64_Half     e_shtrndx_STRING_TABLE_INDEX <comment="Section header string table index">;
         }        
@@ -854,7 +858,7 @@ struct {
     // Find the header name location
     local quad section_name_off = 
         file.elf_header.e_shoff_SECTION_HEADER_OFFSET_IN_FILE +
-        ( file.elf_header.e_shentzise_SECTION_HEADER_ENTRY_SIZE *
+        ( file.elf_header.e_shentsize_SECTION_HEADER_ENTRY_SIZE *
           file.elf_header.e_shtrndx_STRING_TABLE_INDEX );
 
     // Find the header name block
