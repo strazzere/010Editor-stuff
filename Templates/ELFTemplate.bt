@@ -4,12 +4,12 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <strazz@gmail.com>
-// Revision: 2.5.1
+// Revision: 2.5.2
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
 //
-// Version 2.5.1
+// Version 2.5.1 / 2.5.2
 // FIXED:
 //  - Some typos and added a out of bounds check
 //
@@ -436,7 +436,8 @@ typedef struct {  //32bit
     Elf32_Word  p_align <comment="Segment alignment">;
 
     // Ensure we're not trying to map ourside of the file (prevent error)
-    if( p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
+    if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() &&
+        p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
         FSeek(p_offset_FROM_FILE_BEGIN);
         char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
     } else {
@@ -458,9 +459,10 @@ typedef struct {  //64bit
     Elf64_Xword p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in ram">;
     Elf64_Xword p_align <comment="Segment alignment">;
 
-    if( p_filesz_SEGMENT_FILE_LENGTH > 0 && p_offset_FROM_FILE_BEGIN + p_filesz_SEGMENT_FILE_LENGTH < FileSize() ) {
+    if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < (uint64) FileSize() &&
+        p_offset_FROM_FILE_BEGIN > 0 && p_offset_FROM_FILE_BEGIN + p_filesz_SEGMENT_FILE_LENGTH < (uint64) FileSize()) {
         FSeek(p_offset_FROM_FILE_BEGIN);
-        char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+        char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
     }
 
     FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
