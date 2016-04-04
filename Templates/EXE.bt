@@ -1,0 +1,851 @@
+//------------------------------------------------
+//--- 010 Editor v4.0.3 Binary Template
+//
+//      File: EXE.bt
+//   Authors: xSpy, Peter Kankowski, SweetScape Software
+//    E-mail: cdutboy@gmail.com (xSpy)
+//   Website: http://smallcode.weblogs.us (Peter Kankowski)
+//   Version: 0.3
+//   Purpose: Parse Windows executable exe, dll, and sys files. 
+//            Supports 32 and 64 bit.
+//  Category: Executable
+// File Mask: *.exe,*.dll,*.sys
+//  ID Bytes: 4D 5A //MZ
+//   History: 
+//   0.3     2016-03-31 T Strazzere:   Fixed issue with IMAGE_IMPORT_DESCRIPTOR
+//   0.2     2016-03-10 Yann Le Brech: Added LittleEndian();
+//   0.1     2016-02-15 SweetScape Software: Merged changes from PETemplate.bt and EXETemplate2.bt
+//                                           and renamed to this file. Added some coloring and rearranged
+//                                           for readability. Update header for repository submission.
+//   0.0.0.2 2013-01-06 xSpy: Add Parse Reloc.
+//   0.0.0.1 2013-01-01 xSpy: Public release.
+//
+// Recommended reading:
+// 1. Bernd Luevelsmeyer. The PE file format
+//    http://webster.cs.ucr.edu/Page_TechDocs/pe.txt
+// 2. DJ Delorie. MS DOS EXE format
+//    http://www.delorie.com/djgpp/doc/exe/
+// 3. Iczelion. PE tutorial
+//    http://spiff.tripnet.se/~iczelion/tutorials.html
+//------------------------------------------------
+
+typedef QWORD ULONGLONG;    //fix ULONGLONG
+
+typedef struct
+{  
+    WORD   MZSignature              <format=hex,comment="IMAGE_DOS_SIGNATURE = 0x5A4D">;    
+    WORD   UsedBytesInTheLastPage   <comment="Bytes on last page of file">;
+    WORD   FileSizeInPages          <comment="Pages in file">;
+    WORD   NumberOfRelocationItems  <comment="Relocations">;
+    WORD   HeaderSizeInParagraphs   <comment="Size of header in paragraphs">;
+    WORD   MinimumExtraParagraphs   <comment="Minimum extra paragraphs needed">;
+    WORD   MaximumExtraParagraphs   <comment="Maximum extra paragraphs needed">;
+    WORD   InitialRelativeSS        <comment="Initial (relative) SS value">;
+    WORD   InitialSP                <comment="Initial SP value">;
+    WORD   Checksum                 <comment="Checksum">;
+    WORD   InitialIP                <comment="Initial IP value">;
+    WORD   InitialRelativeCS        <comment="Initial (relative) CS value">;
+    WORD   AddressOfRelocationTable <comment="File address of relocation table">;
+    WORD   OverlayNumber            <comment="Overlay number">;
+    WORD   Reserved[4]              <comment="Reserved words">;
+    WORD   OEMid                    <comment="OEM identifier (for OEMinfo)">;
+    WORD   OEMinfo                  <comment="OEM information; OEMid specific">; 
+    WORD   Reserved2[10]            <comment="Reserved words">;
+    LONG   AddressOfNewExeHeader    <format=hex,comment="NtHeader Offset">;
+} IMAGE_DOS_HEADER;
+
+typedef enum<WORD>
+{
+    IMAGE_MACHINE_UNKNOWN  = 0,
+    I386     = 0x014c,
+    R3000    = 0x0162,  // MIPS little-endian, 0x160 big-endian
+    R4000    = 0x0166,  // MIPS little-endian
+    R10000   = 0x0168,  // MIPS little-endian
+    WCEMIPSV2= 0x0169,  // MIPS little-endian WCE v2
+    ALPHA    = 0x0184,  // Alpha_AXP
+    SH3      = 0x01a2,  // SH3 little-endian
+    SH3DSP   = 0x01a3,
+    SH3E     = 0x01a4,  // SH3E little-endian
+    SH4      = 0x01a6,  // SH4 little-endian
+    SH5      = 0x01a8,  // SH5
+    ARM      = 0x01c0,  // ARM Little-Endian
+    THUMB    = 0x01c2,
+    AM33     = 0x01d3,
+    POWERPC  = 0x01F0,  // IBM PowerPC Little-Endian
+    POWERPCFP= 0x01f1,
+    IA64     = 0x0200,  // Intel 64
+    MIPS16   = 0x0266,  // MIPS
+    ALPHA64  = 0x0284,  // ALPHA64
+    MIPSFPU  = 0x0366,  // MIPS
+    MIPSFPU16= 0x0466,  // MIPS
+    TRICORE  = 0x0520,  // Infineon
+    CEF      = 0x0CEF,
+    EBC      = 0x0EBC,  // EFI Byte Code
+    AMD64    = 0x8664,  // AMD64 (K8)
+    M32R     = 0x9041,  // M32R little-endian
+    CEE      = 0xC0EE
+}IMAGE_MACHINE <comment="WORD">;
+
+//Characteristics
+typedef struct
+{
+    WORD IMAGE_FILE_RELOCS_STRIPPED:1           <comment="0x0001  Relocation info stripped from file">;
+    WORD IMAGE_FILE_EXECUTABLE_IMAGE:1          <comment="0x0002  File is executable">;
+    WORD IMAGE_FILE_LINE_NUMS_STRIPPED:1        <comment="0x0004  Line nunbers stripped from file">;
+    WORD IMAGE_FILE_LOCAL_SYMS_STRIPPED:1       <comment="0x0008  Local symbols stripped from file">;
+    WORD IMAGE_FILE_AGGRESIVE_WS_TRIM:1         <comment="0x0010  Agressively trim working set">;
+    WORD IMAGE_FILE_LARGE_ADDRESS_AWARE:1       <comment="0x0020  App can handle >2gb addresses">;
+    WORD                               :1       <comment="0x0040  Reserved",hidden=true>;
+    WORD IMAGE_FILE_BYTES_REVERSED_LO:1         <comment="0x0080  Bytes of machine word are reversed">;
+    WORD IMAGE_FILE_32BIT_MACHINE:1             <comment="0x0100  32 bit word machine">;
+    WORD IMAGE_FILE_DEBUG_STRIPPED:1            <comment="0x0200  Debugging info stripped from file in .DBG file">;
+    WORD IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP:1   <comment="0x0400  If Image is on removable media, copy and run from the swap file">;
+    WORD IMAGE_FILE_NET_RUN_FROM_SWAP:1         <comment="0x0800  If Image is on Net, copy and run from the swap file">;
+    WORD IMAGE_FILE_SYSTEM:1                    <comment="0x1000  System File">;
+    WORD IMAGE_FILE_DLL:1                       <comment="0x2000  File is a DLL">;
+    WORD IMAGE_FILE_UP_SYSTEM_ONLY:1            <comment="0x4000  File should only be run on a UP machine">;
+    WORD IMAGE_FILE_BYTES_REVERSED_HI:1         <comment="0x8000  Bytes of machine word are reversed">;
+}FILE_CHARACTERISTICS <comment="WORD">;
+
+typedef struct
+{
+    IMAGE_MACHINE    Machine                    <fgcolor=cPurple,format=hex,comment="WORD">;
+    WORD    NumberOfSections                    <fgcolor=cBlue,comment="Section num">;
+    time_t  TimeDateStamp                       <format=hex,comment="DWORD,from 01/01/1970 12:00 AM">;
+    DWORD   PointerToSymbolTable;
+    DWORD   NumberOfSymbols;
+    WORD    SizeOfOptionalHeader;
+    FILE_CHARACTERISTICS   Characteristics      <comment="WORD">;
+}IMAGE_FILE_HEADER;
+
+typedef struct
+{
+    DWORD   VirtualAddress  <format=hex,comment=CommentRVA2FOA>;
+    DWORD   Size;
+}IMAGE_DATA_DIRECTORY;
+
+typedef struct
+{
+    local int len = NtHeader.OptionalHeader.NumberOfRvaAndSizes;
+    if(len > 16)
+        len = 16;
+    if(len > 0)  IMAGE_DATA_DIRECTORY  Export    <comment="IMAGE_DIRECTORY_ENTRY_EXPORT">;
+    if(len > 1)  IMAGE_DATA_DIRECTORY  Import    <fgcolor=cPurple,comment="IMAGE_DIRECTORY_ENTRY_IMPORT">;
+    if(len > 2)  IMAGE_DATA_DIRECTORY  Resource    <comment="IMAGE_DIRECTORY_ENTRY_RESOURCE">;
+    if(len > 3)  IMAGE_DATA_DIRECTORY  Exception    <comment="IMAGE_DIRECTORY_ENTRY_EXCEPTION">;
+    if(len > 4)  IMAGE_DATA_DIRECTORY  Security    <comment="IMAGE_DIRECTORY_ENTRY_SECURITY">;
+    if(len > 5)  IMAGE_DATA_DIRECTORY  BaseRelocationTable    <fgcolor=cPurple,comment="IMAGE_DIRECTORY_ENTRY_BASERELOC">;
+    if(len > 6)  IMAGE_DATA_DIRECTORY  DebugDirectory    <comment="IMAGE_DIRECTORY_ENTRY_DEBUG">;
+    if(len > 7)  IMAGE_DATA_DIRECTORY  CopyrightOrArchitectureSpecificData    <comment="IMAGE_DIRECTORY_ENTRY_ARCHITECTURE">;
+    if(len > 8)  IMAGE_DATA_DIRECTORY  GlobalPtr   <comment="IMAGE_DIRECTORY_ENTRY_GLOBALPTR">;
+    if(len > 9)  IMAGE_DATA_DIRECTORY  TLSDirectory   <comment="IMAGE_DIRECTORY_ENTRY_TLS">;
+    if(len > 10) IMAGE_DATA_DIRECTORY  LoadConfigurationDirectory   <comment="IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG">;
+    if(len > 11) IMAGE_DATA_DIRECTORY  BoundImportDirectory   <comment="IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT">;
+    if(len > 12) IMAGE_DATA_DIRECTORY  ImportAddressTable   <fgcolor=cPurple,comment="IMAGE_DIRECTORY_ENTRY_IAT">;
+    if(len > 13) IMAGE_DATA_DIRECTORY  DelayLoadImportDescriptors   <comment="IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT">;
+    if(len > 14) IMAGE_DATA_DIRECTORY  COMRuntimedescriptor   <comment="IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR">;
+    if(len > 15) IMAGE_DATA_DIRECTORY  Reserved   <comment="System Reserved">;
+}IMAGE_DATA_DIRECTORY_ARRAY;
+
+typedef enum<WORD>
+{
+    IMAGE_SUBSYSTEM_UNKNOWN =0,   // Unknown subsystem.
+    NATIVE                  =1,  // Image doesn't require a subsystem.
+    WINDOWS_GUI             =2,   // Image runs in the Windows GUI subsystem.
+    WINDOWS_CUI             =3,   // Image runs in the Windows character subsystem.
+    OS2_CUI                 =5,   // image runs in the OS/2 character subsystem.
+    POSIX_CUI               =7,   // image runs in the Posix character subsystem.
+    NATIVE_WINDOWS          =8,   // image is a native Win9x driver.
+    WINDOWS_CE_GUI          =9,   // Image runs in the Windows CE subsystem.
+    EFI_APPLICATION         =10,  
+    EFI_BOOT_SERVICE_DRIVER =11,   
+    EFI_RUNTIME_DRIVER      =12,  
+    EFI_ROM                 =13,
+    XBOX                    =14,
+    WINDOWS_BOOT_APPLICATION=16
+}IMAGE_SUBSYSTEM<comment="WORD">;
+
+typedef struct
+{
+    WORD IMAGE_LIBRARY_PROCESS_INIT:1   <comment="0x0001 Reserved">;
+    WORD IMAGE_LIBRARY_PROCESS_TERM:1   <comment="0x0002 Reserved">; 
+    WORD IMAGE_LIBRARY_THREAD_INIT:1    <comment="0x0004 Reserved">;
+    WORD IMAGE_LIBRARY_THREAD_TERM:1    <comment="0x0008 Reserved">;
+    WORD                           :2   <comment="0x0010,0x0020",hidden=true>;
+    WORD IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE:1            <comment="0x0040">;
+    WORD IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY:1         <comment="0x0080">;
+    WORD IMAGE_DLLCHARACTERISTICS_NX_COMPAT:1               <comment="0x0100">;
+    WORD IMAGE_DLLCHARACTERISTICS_NO_ISOLATION:1            <comment="0x0200">;
+    WORD IMAGE_DLLCHARACTERISTICS_NO_SEH:1                  <comment="0x0400">;
+    WORD IMAGE_DLLCHARACTERISTICS_NO_BIND:1                 <comment="0x0800">;
+    WORD                                  :1                <comment="0x1000",hidden=true>;
+    WORD IMAGE_DLLCHARACTERISTICS_WDM_DRIVER:1              <comment="0x2000">;
+    WORD                                     :1             <comment="0x4000",hidden=true>;
+    WORD IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE:1   <comment="0x8000">;
+}DLL_CHARACTERISTICS <comment="WORD">;
+
+typedef enum<WORD>
+{
+    PE32=0x10b,
+    PE64=0x20b,
+    ROM=0x107
+}OPTIONAL_MAGIC <comment="WORD">;
+
+typedef struct
+{
+    OPTIONAL_MAGIC    Magic               <format=hex>;
+    BYTE    MajorLinkerVersion;
+    BYTE    MinorLinkerVersion;
+    DWORD   SizeOfCode          <format=hex>;
+    DWORD   SizeOfInitializedData;
+    DWORD   SizeOfUninitializedData;
+    DWORD   AddressOfEntryPoint <fgcolor=cPurple,format=hex,comment=CommentRVA2FOA>;
+    DWORD   BaseOfCode          <format=hex,comment=CommentRVA2FOA>;
+    DWORD   BaseOfData          <format=hex,comment=CommentRVA2FOA>;
+    DWORD   ImageBase           <format=hex>;
+    DWORD   SectionAlignment    <format=hex>;
+    DWORD   FileAlignment       <format=hex>;
+    WORD    MajorOperatingSystemVersion;
+    WORD    MinorOperatingSystemVersion;
+    WORD    MajorImageVersion;
+    WORD    MinorImageVersion;
+    WORD    MajorSubsystemVersion;
+    WORD    MinorSubsystemVersion;
+    DWORD   Win32VersionValue;
+    DWORD   SizeOfImage         <format=hex>;
+    DWORD   SizeOfHeaders       <format=hex>;
+    DWORD   CheckSum            <format=hex>;
+    IMAGE_SUBSYSTEM    Subsystem;
+    DLL_CHARACTERISTICS    DllCharacteristics;
+    DWORD   SizeOfStackReserve  <format=hex>;
+    DWORD   SizeOfStackCommit   <format=hex>;
+    DWORD   SizeOfHeapReserve   <format=hex>;
+    DWORD   SizeOfHeapCommit    <format=hex>;
+    DWORD   LoaderFlags;
+    DWORD   NumberOfRvaAndSizes;
+    IMAGE_DATA_DIRECTORY_ARRAY  DataDirArray;
+}IMAGE_OPTIONAL_HEADER32;
+
+typedef struct
+{
+    OPTIONAL_MAGIC        Magic   <format=hex>;
+    BYTE        MajorLinkerVersion;
+    BYTE        MinorLinkerVersion;
+    DWORD       SizeOfCode;
+    DWORD       SizeOfInitializedData;
+    DWORD       SizeOfUninitializedData;
+    DWORD       AddressOfEntryPoint <format=hex,comment=CommentRVA2FOA>;
+    DWORD       BaseOfCode  <format=hex>;
+    ULONGLONG   ImageBase   <format=hex>;
+    DWORD       SectionAlignment;
+    DWORD       FileAlignment;
+    WORD        MajorOperatingSystemVersion;
+    WORD        MinorOperatingSystemVersion;
+    WORD        MajorImageVersion;
+    WORD        MinorImageVersion;
+    WORD        MajorSubsystemVersion;
+    WORD        MinorSubsystemVersion;
+    DWORD       Win32VersionValue;
+    DWORD       SizeOfImage <format=hex>;
+    DWORD       SizeOfHeaders;
+    DWORD       CheckSum;
+    IMAGE_SUBSYSTEM    Subsystem;
+    DLL_CHARACTERISTICS        DllCharacteristics;
+    ULONGLONG   SizeOfStackReserve <format=hex>;
+    ULONGLONG   SizeOfStackCommit <format=hex>;
+    ULONGLONG   SizeOfHeapReserve <format=hex>;
+    ULONGLONG   SizeOfHeapCommit <format=hex>;
+    DWORD       LoaderFlags;
+    DWORD       NumberOfRvaAndSizes;
+    IMAGE_DATA_DIRECTORY_ARRAY  DataDirArray;
+}IMAGE_OPTIONAL_HEADER64;
+
+typedef struct 
+{
+    DWORD Signature <format=hex,comment="IMAGE_NT_SIGNATURE = 0x00004550">;
+    IMAGE_FILE_HEADER FileHeader;
+    
+    local WORD OptionalHeaderMagic = ReadShort(FTell());
+
+    if (0x10b == OptionalHeaderMagic)
+    {
+        IMAGE_OPTIONAL_HEADER32 OptionalHeader;
+    }
+    else if (0x20b == OptionalHeaderMagic)
+    {
+        IMAGE_OPTIONAL_HEADER64 OptionalHeader;
+    }
+    else
+    {
+        Printf("not valid Optional header magic %x.\n",OptionalHeaderMagic);
+       return 1;
+    }
+}IMAGE_NT_HEADERS <size=CalcImageNtHeadersSize>;
+
+int CalcImageNtHeadersSize(IMAGE_NT_HEADERS& stNtHeader)
+{
+    local WORD OptionalHeaderMagic = ReadShort(startof(stNtHeader) + sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER) );    
+
+    if(0x10B ==  OptionalHeaderMagic)
+    {
+        Printf("PE32\n");
+        return 0xF8;    //sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER) + sizeof(IMAGE_OPTIONAL_HEADER32);
+    }
+    else if (0x20B == OptionalHeaderMagic)
+    {
+        Printf("PE64\n");
+        return 0x108;   //sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER) + sizeof(IMAGE_OPTIONAL_HEADER64);
+    }
+    else
+    {
+        return sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER) + 0; //
+    }
+    return 0;
+}
+
+typedef struct
+{
+    ULONG IMAGE_SCN_TYPE_DSECT:1                 <hidden=true,comment="0x00000001 Reserved">;
+    ULONG IMAGE_SCN_TYPE_NOLOAD:1                <hidden=true,comment="0x00000002 Reserved">;
+    ULONG IMAGE_SCN_TYPE_GROUP:1                 <hidden=true,comment="0x00000004 Reserved">;
+    ULONG IMAGE_SCN_TYPE_NO_PAD:1                <comment="0x00000008 Reserved">;
+    ULONG IMAGE_SCN_TYPE_COPY:1                  <hidden=true,comment="0x00000010 Reserved">;
+
+    ULONG IMAGE_SCN_CNT_CODE:1                   <comment="0x00000020 Section contains code">;
+    ULONG IMAGE_SCN_CNT_INITIALIZED_DATA:1       <comment="0x00000040 Section contains initialized data">;
+    ULONG IMAGE_SCN_CNT_UNINITIALIZED_DATA:1     <comment="0x00000080 Section contains uninitialized data">;
+    
+    ULONG IMAGE_SCN_LNK_OTHER:1                  <comment="0x00000100 Reserved">;
+    ULONG IMAGE_SCN_LNK_INFO:1                   <comment="0x00000200 Section contains comments or some other type of information">;
+    ULONG IMAGE_SCN_TYPE_OVER:1                  <hidden=true,comment="0x00000400 Reserved">;
+    ULONG IMAGE_SCN_LNK_REMOVE:1                 <comment="0x00000800 Section contents will not become part of image">;
+    ULONG IMAGE_SCN_LNK_COMDAT:1                 <comment="0x00001000 Section contents comdat">;
+    ULONG                      :1                <comment="0x00002000 Reserved">;
+    ULONG IMAGE_SCN_NO_DEFER_SPEC_EXC:1          <hidden=true,comment="0x00004000 Reset speculative exceptions handling bits in the TLB entries for this section.">;
+    ULONG IMAGE_SCN_GPREL:1                      <comment="0x00008000 Section content can be accessed relative to GP">;
+    ULONG IMAGE_SCN_MEM_SYSHEAP:1                <hidden=true,comment="0x00010000 Obsolete">;
+    ULONG IMAGE_SCN_MEM_16BIT:1                  <comment="0x00020000">;
+    ULONG IMAGE_SCN_MEM_LOCKED:1                 <comment="0x00040000 ">;
+    ULONG IMAGE_SCN_MEM_PRELOAD:1                <comment="0x00080000">;
+    
+    ULONG IMAGE_SCN_ALIGN_1BYTES:1               <comment="0x00100000">;  
+    ULONG IMAGE_SCN_ALIGN_2BYTES:1               <comment="0x00200000">; 
+    ULONG IMAGE_SCN_ALIGN_8BYTES:1               <comment="0x00400000">;
+    ULONG IMAGE_SCN_ALIGN_128BYTES:1             <comment="0x00800000">; 
+
+    ULONG IMAGE_SCN_LNK_NRELOC_OVFL:1            <comment="0x01000000 Section contains extended relocations">; 
+    ULONG IMAGE_SCN_MEM_DISCARDABLE:1            <comment="0x02000000 Section can be discarded.">;
+    ULONG IMAGE_SCN_MEM_NOT_CACHED:1             <comment="0x04000000 Section is not cachable">;  
+    ULONG IMAGE_SCN_MEM_NOT_PAGED:1              <comment="0x08000000 Section is not pageable.">; 
+    ULONG IMAGE_SCN_MEM_SHARED:1                 <comment="0x10000000 Section is shareable">;  
+    ULONG IMAGE_SCN_MEM_EXECUTE:1                <comment="0x20000000 Section is executable">; 
+    ULONG IMAGE_SCN_MEM_READ:1                   <comment="0x40000000 Section is readable">;  
+    ULONG IMAGE_SCN_MEM_WRITE:1                  <comment="0x80000000 Section is writeable">;  
+}SECTION_CHARACTERISTICS;
+
+typedef struct 
+{
+    BYTE    Name[8] <comment="can end without zero">;
+    union {
+            DWORD   PhysicalAddress;
+            DWORD   VirtualSize;
+    } Misc;
+    DWORD   VirtualAddress      <format=hex>;
+    DWORD   SizeOfRawData       <format=hex>;
+    DWORD   PointerToRawData    <format=hex>;
+    DWORD   PointerToRelocations<format=hex>;
+    DWORD   PointerToLinenumbers;
+    WORD    NumberOfRelocations;
+    WORD    NumberOfLinenumbers;
+    SECTION_CHARACTERISTICS   Characteristics     <format=hex>;
+}IMAGE_SECTION_HEADER <read=ReadImageSectionHeader>;
+
+string ReadImageSectionHeader( IMAGE_SECTION_HEADER &h )
+{
+    return h.Name;
+}
+
+typedef struct (IMAGE_SECTION_HEADER& SecHeader)
+{
+    local string sSecName=SecHeader.Name;
+
+    UCHAR Data[SecHeader.SizeOfRawData];
+}IMAGE_SECTION_DATA  <read=ReadSectionData>;
+
+string ReadSectionData(IMAGE_SECTION_DATA& SecData)
+{
+    return SecData.sSecName;
+}
+
+typedef struct (int nNameLen)
+{
+    WORD    Hint;
+    BYTE    Name[nNameLen];
+} IMAGE_IMPORT_BY_NAME <comment=commentImageImportByName>;
+
+string commentImageImportByName(IMAGE_IMPORT_BY_NAME& ImportByName)
+{
+    return ImportByName.Name;
+}
+
+typedef struct 
+{
+    local int   nNameIndex=0;
+    local ULONG ulThrunk=0;
+    local int   nNameLen=0;
+    local string sDllName="";
+    local ULONG ulOriginalFirstThunkFOA=0;
+
+    union 
+    {
+        ULONG   Characteristics;  
+        ULONG   OriginalFirstThunk <format=hex,comment=CommentRVA2FOA>;
+    }DUMMYUNIONNAME;
+
+    ULONG   TimeDateStamp   <comment="0 if not bound">; 
+    ULONG   ForwarderChain  <comment="-1 if no forwarders">;
+    ULONG   Name        <format=hex,comment=CommentRVAString>;
+    ULONG   FirstThunk  <format=hex,comment=CommentRVA2FOA>;
+
+
+    ulOriginalFirstThunkFOA = RVA2FOA(DUMMYUNIONNAME.OriginalFirstThunk);
+    if ((0x20b == NtHeader.OptionalHeader.Magic))
+    {
+                   
+    }
+    else
+    {
+        nNameIndex =0;
+
+        local long og_position = 0;
+        while(1)
+        {
+            ulThrunk = ReadUInt(ulOriginalFirstThunkFOA + 4 * nNameIndex);           
+            if (0 == ulThrunk)
+            {
+                break;
+            }     
+	              
+            if (ulThrunk & 0x80000000)
+            {
+		        Printf("mport by order \n");
+            }
+            else
+            {
+                nNameLen = Strlen(ReadString(RVA2FOA(ulThrunk) + sizeof(WORD)));
+                if(0 != nNameLen)
+                {
+                    // This appears to not be continuous, so we need to ensure that we
+                    // fall back to the original position otherwise the structs will
+                    // not finish being created
+                    og_position = FTell();
+                    FSeek(RVA2FOA(ulThrunk));
+                    IMAGE_IMPORT_BY_NAME ImportByName(nNameLen +1)<open=false>;
+                    FSeek(og_position);
+                }
+	       }
+        nNameIndex++;
+     }
+  }
+}IMAGE_IMPORT_DESCRIPTOR <read=ReadImageImportDescriptor>;
+
+string ReadImageImportDescriptor(IMAGE_IMPORT_DESCRIPTOR& ImportDescriptor)
+{
+    return ReadString( RVA2FOA(ImportDescriptor.Name));
+}
+
+typedef struct (string& sExportFuncName,ULONG ulDestRVA,string& sJmpName)
+{
+   local ULONG ulLocalDestRVA=ulDestRVA;
+   local string sLocalJmpName=sJmpName;
+
+   char Function[Strlen(sExportFuncName)];
+}IMAGE_EXPORT_BY_NAME <read=ReadExportByName,comment=commentExportByName>;
+
+string ReadExportByName(IMAGE_EXPORT_BY_NAME& ExportByName)
+{
+    return ExportByName.Function;
+}
+
+string commentExportByName(IMAGE_EXPORT_BY_NAME& ExportByName)
+{
+    local string sComment="";
+
+    if (0 == Strlen(ExportByName.sLocalJmpName) )
+    {
+        SPrintf(sComment,"0x%X",ExportByName.ulLocalDestRVA);
+    }
+    else
+    {
+        SPrintf(sComment,"%s",ExportByName.sLocalJmpName);
+    }
+    
+    return sComment;
+}
+
+typedef struct {
+    DWORD   Characteristics;
+    time_t   TimeDateStamp;
+    WORD    MajorVersion;
+    WORD    MinorVersion;
+    DWORD   Name <format=hex,comment=CommentRVAString>;
+    DWORD   Base;
+    DWORD   NumberOfFunctions;
+    DWORD   NumberOfNames;
+    DWORD   AddressOfFunctions      <format=hex,comment=CommentRVA2FOA>;     // RVA from base of image
+    DWORD   AddressOfNames          <format=hex,comment=CommentRVA2FOA>;         // RVA from base of image
+    DWORD   AddressOfNameOrdinals   <format=hex,comment=CommentRVA2FOA>;  // RVA from base of image
+
+    local int   nIndex=0;
+    local ULONG NameArrayFOA=0;
+    local ULONG OrdinalArrayFOA=0;
+    local ULONG FuncArrayFOA=0;
+    local ULONG ulNameRVA=0;  
+    local ULONG ulNameFOA=0;
+    local ULONG ulFuncRVA=0;
+    local WORD  wOrdinal=0;
+    
+    local string sExportName="";
+    local string sJmpName="";
+   
+    //List Export names.
+    NameArrayFOA = RVA2FOA(ExportDir.AddressOfNames);
+    OrdinalArrayFOA = RVA2FOA(ExportDir.AddressOfNameOrdinals);
+    FuncArrayFOA    = RVA2FOA(ExportDir.AddressOfFunctions);
+    
+    for(nIndex=0; nIndex < ExportDir.NumberOfNames; nIndex++)
+    {
+        ulNameRVA = ReadUInt(NameArrayFOA + nIndex*sizeof(ULONG) );        
+        ulNameFOA = RVA2FOA(ulNameRVA);
+        sExportName = ReadString(ulNameFOA);
+            
+        if (0 != Strlen(sExportName))
+        {
+            wOrdinal = ReadUShort(OrdinalArrayFOA + nIndex*sizeof(USHORT));
+            ulFuncRVA = ReadUInt(FuncArrayFOA + wOrdinal* sizeof(ULONG) ); //GetRVA
+                
+            if ( (ulFuncRVA >NtHeader.OptionalHeader.DataDirArray.Export.VirtualAddress ) && \
+                (ulFuncRVA < NtHeader.OptionalHeader.DataDirArray.Export.VirtualAddress + NtHeader.OptionalHeader.DataDirArray.Export.Size ) )
+            {
+                //is a jmp
+    
+              sJmpName = ReadString( RVA2FOA(ulFuncRVA) );
+              FSeek(ulNameFOA);
+              IMAGE_EXPORT_BY_NAME ExportByName(sExportName,ulFuncRVA,sJmpName);
+            }       
+            else
+            {
+              //normal
+              sJmpName ="";
+              FSeek(ulNameFOA);
+              IMAGE_EXPORT_BY_NAME ExportByName(sExportName,ulFuncRVA,sJmpName);
+            }
+        }
+    }
+}IMAGE_EXPORT_DIRECTORY <comment=commentExportDirectory>;
+
+string commentExportDirectory(IMAGE_EXPORT_DIRECTORY& ExportDir)
+{
+    return ReadString(RVA2FOA(ExportDir.Name));
+}
+
+ULONG RVA2FOA(ULONG ulRVA)
+{
+    local int i=0;  
+    
+    for(i=0; i < NtHeader.FileHeader.NumberOfSections; i++)
+    {
+        if ( (ulRVA >= SectionHeaders[i].VirtualAddress) && (ulRVA <= SectionHeaders[i].VirtualAddress + SectionHeaders[i].SizeOfRawData) )
+        {
+          return SectionHeaders[i].PointerToRawData + (ulRVA - SectionHeaders[i].VirtualAddress);
+        } 
+    }
+    return 0;
+}
+
+string LocationRVA(ULONG ulRVA)
+{
+    local int i=0;  
+    
+    for(i=0; i < NtHeader.FileHeader.NumberOfSections; i++)
+    {
+        if ( (ulRVA >= SectionHeaders[i].VirtualAddress) && (ulRVA <= SectionHeaders[i].VirtualAddress + SectionHeaders[i].SizeOfRawData) )
+        {
+          return SectionHeaders[i].Name;
+        } 
+    }
+    return "";
+}
+
+string CommentRVA2FOA(DWORD dwRVA)
+{
+   local string sComment="";
+   if (0 != dwRVA)
+   {
+     SPrintf(sComment,"%s FOA = 0x%X \n",LocationRVA(dwRVA),RVA2FOA(dwRVA));   
+   }
+   return sComment;
+}
+
+string CommentRVAString(DWORD dwRVA)
+{
+    local string sComment="";
+
+    if (0 != dwRVA)
+    {
+        SPrintf(sComment,"%s FOA = 0x%X -> %s",LocationRVA(dwRVA),RVA2FOA(dwRVA),ReadString(RVA2FOA(dwRVA)) );
+    }
+    return sComment; 
+}
+
+typedef struct
+{
+    DWORD   VirtualAddress <format=hex,comment=CommentRVA2FOA>;
+    DWORD   SizeOfBlock;
+//  WORD    TypeOffset[1];
+
+    local ULONG ulBlockNum=0;
+    
+    ulBlockNum = (SizeOfBlock - 8)/2;
+    WORD Block[ulBlockNum] <format=hex,comment=CommentBaseRelocBlock>;
+    
+} IMAGE_BASE_RELOCATION <comment=commentImageBaseRelocation>;
+
+
+
+string CommentBaseRelocBlock(WORD Block)
+{
+    if(0x3000 == (Block & 0xF000) )
+    {
+        return "HIGHLOW";
+    }
+    else
+    {
+        return "ABSOLUTE";
+    }
+
+    return "";
+}
+
+
+string commentImageBaseRelocation(IMAGE_BASE_RELOCATION& BaseReloc)
+{
+    local string sComment="";
+    SPrintf(sComment,"%d",BaseReloc.ulBlockNum);
+    return sComment;
+}
+
+typedef struct
+{   
+    local ULONG ulRelocNum=0;
+
+    while(1)
+    {
+        if(0 == ReadUInt(FTell()) )
+        {
+            break;
+        }
+        IMAGE_BASE_RELOCATION BaseReloc;
+        ulRelocNum++;
+    }
+}BASE_RELOCATION_TABLE <comment=commentBaseRelocationTable>;
+
+string commentBaseRelocationTable(BASE_RELOCATION_TABLE& RelocTable)
+{
+    local string sComment="";
+    SPrintf(sComment,"%d",RelocTable.ulRelocNum);
+    return sComment;
+}
+
+
+
+//Parse Export Directory
+void ParseEAT(void)
+{ 
+    if( (NtHeader.OptionalHeader.DataDirArray.Export.VirtualAddress != 0) && (NtHeader.OptionalHeader.DataDirArray.Export.Size != 0) )
+    {
+        local ULONG ulExportFOA= RVA2FOA(NtHeader.OptionalHeader.DataDirArray.Export.VirtualAddress);
+        FSeek(ulExportFOA);
+        IMAGE_EXPORT_DIRECTORY ExportDir;
+    }
+}
+
+//Import Directory
+void ParseIAT()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.Import.VirtualAddress != 0) && (NtHeader.OptionalHeader.DataDirArray.Import.Size != 0) )
+    {
+        local ULONG ulImportFOA = RVA2FOA(NtHeader.OptionalHeader.DataDirArray.Import.VirtualAddress);    //Import 
+        local ULONG ulOriginalFirstThunk=0;
+        local ULONG ulOriginalFirstThunkFOA=0;
+        local int   nImportIndex=0;
+
+        FSeek(ulImportFOA);
+        while(1)
+        {
+            ulOriginalFirstThunk = ReadUInt(ulImportFOA + 0x14*nImportIndex );
+            if (0 == ulOriginalFirstThunk)
+            {
+                break;
+            }
+            FSeek(ulImportFOA + 0x14*nImportIndex);
+            IMAGE_IMPORT_DESCRIPTOR ImportDescriptor;
+            nImportIndex++;
+        }
+    }
+}
+
+//Resource Directory 2
+void ParseResource()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.Resource.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.Resource.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//Exception Directory 3
+void ParseException()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.Exception.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.Exception.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//Security Directory 4
+void ParseSecurity()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.Security.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.Security.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//Relocation Directory 5
+void ParseBaseReloc()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.BaseRelocationTable.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.BaseRelocationTable.Size == 0) )
+    {
+       return;
+    }
+    FSeek( RVA2FOA(NtHeader.OptionalHeader.DataDirArray.BaseRelocationTable.VirtualAddress) );
+    BASE_RELOCATION_TABLE RelocTable;
+}
+
+//Debug Directory 6
+void ParseDebug()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.DebugDirectory.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.DebugDirectory.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//TLS 9
+void ParseTLS()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.TLSDirectory.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.TLSDirectory.Size == 0) )
+    {
+       return;
+    }
+
+    //FixMe
+}
+
+//Bound Import 11
+void ParseBoundImport()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.BoundImportDirectory.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.BoundImportDirectory.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//Delay Import 13
+void ParseDelayImport()
+{
+    if( (NtHeader.OptionalHeader.DataDirArray.DelayLoadImportDescriptors.VirtualAddress == 0) || (NtHeader.OptionalHeader.DataDirArray.DelayLoadImportDescriptors.Size == 0) )
+    {
+       return;
+    }
+    //FixMe
+}
+
+//--------------------------------------------------------------------------------------------------------
+//Code
+LittleEndian();
+Printf("Parse PE Begin.\n");
+IMAGE_DOS_HEADER DosHeader <bgcolor=cLtPurple>;
+if (DosHeader.MZSignature != 0x5A4D)
+{
+    Printf("invalid dos magic.\n");
+    return 1;
+}
+if (0 == DosHeader.AddressOfNewExeHeader )
+{
+    Warning("not invalid AddressOfNewExeHeader = 0x%X",DosHeader.AddressOfNewExeHeader);
+    return 2;
+}
+
+struct IMAGE_DOS_STUB
+{
+    UCHAR Data[DosHeader.AddressOfNewExeHeader - sizeof(IMAGE_DOS_HEADER)] <comment="Space between dos header and nt header">;
+    Printf("Space between dos header and nt header is %d bytes \n",DosHeader.AddressOfNewExeHeader - sizeof(IMAGE_DOS_HEADER));
+} DosStub;
+
+FSeek(DosHeader.AddressOfNewExeHeader);
+IMAGE_NT_HEADERS NtHeader <bgcolor=cLtPurple>;
+if (0x00004550 != NtHeader.Signature)
+{
+    Printf("invalid nt Signature 0x%x \n",NtHeader.Signature);
+    return 3;
+}
+ 
+IMAGE_SECTION_HEADER SectionHeaders[NtHeader.FileHeader.NumberOfSections] <bgcolor=cLtGray>;
+
+//no align header size
+local ULONG ulRawHeaderSize = DosHeader.AddressOfNewExeHeader + sizeof(NtHeader) + NtHeader.FileHeader.NumberOfSections*sizeof(IMAGE_SECTION_HEADER);
+
+if (NtHeader.OptionalHeader.SizeOfHeaders - ulRawHeaderSize >0)
+{
+    UCHAR Space2[NtHeader.OptionalHeader.SizeOfHeaders  - ulRawHeaderSize ] <hidden=true,fgcolor=cRed,comment="Space between header and first section">;
+}
+Printf("Space between headers and first sections is %d bytes\n",NtHeader.OptionalHeader.SizeOfHeaders  - ulRawHeaderSize);
+
+FSeek(NtHeader.OptionalHeader.SizeOfHeaders);
+
+local ULONG ulIndex=0;
+for (ulIndex=0; ulIndex < NtHeader.FileHeader.NumberOfSections; ulIndex++)
+{
+    if ( 0 == SectionHeaders[ulIndex].PointerToRawData )
+    {
+        continue;
+    }
+    if ( 0 == SectionHeaders[ulIndex].SizeOfRawData )
+    {
+        continue;
+    }
+    IMAGE_SECTION_DATA    Section(SectionHeaders[ulIndex]);
+}
+
+FSeek(NtHeader.OptionalHeader.SizeOfHeaders);
+
+//Parse Directory
+ParseEAT();
+ParseIAT();
+ParseResource();
+ParseException();
+ParseSecurity();
+ParseBaseReloc();
+ParseDebug();
+ParseTLS();
+ParseBoundImport();
+ParseDelayImport();
+
+Printf("Parse PE finish.\n");
