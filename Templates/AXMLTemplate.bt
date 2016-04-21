@@ -2,8 +2,8 @@
 //--- 010 Editor v5.0.1 Binary Template
 //
 // File: AXMLTemplate.bt
-// Author: Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision: 0.5.1
+// Author: Tim Strazzere <diff@sentinelone.com> <strazz@gmail.com>
+// Revision: 0.5.2
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,10 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.5.2 (2016-04-21)
+// FIXED:
+//  - Removed the last of unknown values;
+//    comment_index, raw_value and typed_value
 // Version 0.5.1 (2015-03-09)
 // FIXED:
 //  - ENUM for attribute types was incorrect
@@ -255,7 +259,7 @@ typedef struct {
     CHUNK_TYPE chunk_type;
     uint chunk_size;
     uint line_number;
-    uint unknown <format=hex>;
+    uint comment_index <format=hex, comment="Default is -1">;
     switch(chunk_type) {
         case START_NAMESPACE :
         case END_NAMESPACE :
@@ -278,8 +282,9 @@ typedef struct {
             break;
         case TEXT :
             uint name;
-            uint unknown2 <format=hex>;
-            uint unknown3 <format=hex>;
+            uint raw_value <format=hex>;
+	    // TODO : Make this an enum
+            uint typed_value <format=hex>;
             break;
         default :
             Printf("Error : Unknown chunk type!\n");
