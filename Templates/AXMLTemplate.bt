@@ -3,7 +3,7 @@
 //
 // File: AXMLTemplate.bt
 // Author: Tim Strazzere <diff@sentinelone.com> <strazz@gmail.com>
-// Revision: 0.5.2
+// Revision: 0.5.3
 // Purpose: A template for analyzing Android XML (AXML) files
 //
 // License: This file is released into the public domain. People may 
@@ -11,6 +11,9 @@
 //--------------------------------------
 
 //--------------------------------------
+// Version 0.5.3 (2016-04-25)
+// ADDED:
+//  - Added more attribute types thanks to JCase point it out
 // Version 0.5.2 (2016-04-21)
 // FIXED:
 //  - Removed the last of unknown values;
@@ -212,6 +215,13 @@ typedef enum <uint> {
     STRING_TYPE   = 0x03000008,
     RESOURCE_TYPE = 0x01000008,
     BOOLEAN_TYPE  = 0x12000008
+    ATTR_TYPE     = 0x02000008;
+    DIMIN_TYPE    = 0x05000008;
+    FRACTION_TYPE = 0x06000008;
+    FLOAT_TYPE    = 0x04000008;
+    FLAGS_TYPE    = 0x11000008
+    COLOR1_TYPE   = 0x1C000008;
+    COLOR2_TYPE   = 0x1D000008;
 } ATTRIBUTE_TYPE <format=hex>;
 
 typedef struct {
