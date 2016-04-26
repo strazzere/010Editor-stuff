@@ -8,6 +8,10 @@
 // Revision: 1.5.3
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+// Version 1.5.4 (2016-04-26)
+//  - Add LoadCommands of :
+//     - LC_VERSION_MIN_TVOS
+//     - LC_VERSION_MIN_WATCHOS
 //
 // Version 1.5.3 (2015-09-02)
 //  - WIP, adding lots of stuff :D
@@ -609,6 +613,8 @@ typedef enum <uint> {
     ENCRYPTION_INFO_64       = 0x2C,
     LINKER_OPTION            = 0x2D,
     LINKER_OPTIMIZATION_HINT = 0x2E,
+    VERSION_MIN_TVOS         = 0x2F,
+    VERSION_MIN_WATCHOS      = 0x30,
 } LoadCommandType <read=LoadCommandTypeRead>;
 
 string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
@@ -707,6 +713,10 @@ string LoadCommandTypeRead(LoadCommandType &loadCommandType) {
             return "LINKER_OPTION";
         case LINKER_OPTIMIZATION_HINT :
             return "LINKER_OPTIMIZATION_HINT";
+        case VERSION_MIN_TVOS :
+            return "VERSION_MIN_TVOS";
+        case VERSION_MIN_WATCHOS :
+            return "VERSION_MIN_WATCHOS";
         default :
             return "Error";
     }
@@ -1178,6 +1188,8 @@ typedef struct {
         break;
     case VERSION_MIN_MAC_OSX :
     case VERSION_MIN_IPHONE_OS :
+    case VERSION_MIN_TVOS :
+    case VERSION_MIN_WATCHOS :
         Version minimum_os_version;
         Version minimumsdk_version;
         break;
