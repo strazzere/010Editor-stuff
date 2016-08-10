@@ -1475,7 +1475,7 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
                 break;
             case SYM_TAB :
                     previous_position = FTell();
-                    SymbolTable symbolTable(machHeader[arch_num].magic,
+                    SymbolTable symbolTable(header.magic,
                                             loadCommandList.loadCommand[i].symbol_table_offset,
                                             loadCommandList.loadCommand[i].number_of_symbol_table_entries,
                                             loadCommandList.loadCommand[i].string_table_offset,
