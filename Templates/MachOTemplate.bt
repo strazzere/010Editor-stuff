@@ -5,9 +5,13 @@
 // Author:   Tim "diff" Strazzere
 //             <diff@lookout.com>
 //             <strazz@gmail.com>
-// Revision: 1.5.3
+// Revision: 1.5.4
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.5.4 (2016-08-10):
+//  - Fix a parsing bug for single-architecture mach-o files.
+//  - Add ARM64 CpuType
 //
 // Version 1.5.3 (2015-09-02)
 //  - WIP, adding lots of stuff :D
@@ -69,7 +73,8 @@
 //
 //
 
-// Mach-o's should be Little Endian only -- except for the fat_header/fat_archLittleEndian();
+// Mach-o's should be Little Endian only -- except for the fat_header/fat_arch
+LittleEndian();
 
 typedef enum <uint> {
     MACHO_32        = 0xFEEDFACE, // 32-bit mach object file
@@ -94,6 +99,7 @@ typedef enum <uint32> {
     MC98000           = 0xA,
     HPPA              = 0xB,
     ARM               = 0xC,
+    ARM64             = (0xC | 0x01000000),
     MC88000           = 0xD,
     SPARC             = 0xE,
     I860              = 0xF,
@@ -161,6 +167,7 @@ typedef enum <uint32> {
 
 typedef enum <uint32> {
     ARM64_ALL          = 0x0
+    ARM64_V8           = 0x1
 } CpuSubTypeARM64 <format=hex>;
 
 typedef enum <uint32> {
@@ -525,6 +532,9 @@ typedef struct {
                 break;
             case ARM :
                 CpuSubTypeARM cpu_sub_type <comment="Machine specifier", format=hex>;
+                break;
+            case ARM64 :
+                CpuSubTypeARM64 cpu_sub_type <comment="Machine specifier", format=hex>;
                 break;
             default :
             uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
@@ -1475,7 +1485,7 @@ if(header.magic == MACHO_32 || header.magic == MACHO_64) {
                 break;
             case SYM_TAB :
                     previous_position = FTell();
-                    SymbolTable symbolTable(machHeader[arch_num].magic,
+                    SymbolTable symbolTable(header.magic,
                                             loadCommandList.loadCommand[i].symbol_table_offset,
                                             loadCommandList.loadCommand[i].number_of_symbol_table_entries,
                                             loadCommandList.loadCommand[i].string_table_offset,
