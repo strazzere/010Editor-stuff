@@ -1,0 +1,67 @@
+//------------------------------------------------
+//--- 010 Editor v7.0beta2 Binary Template
+//
+//      File: cryptfs.bt
+//   Authors: Tim 'diff' Strazzere
+//    E-mail: strazz@gmail.com
+//   Version: 1.0
+//   Purpose: Parse the Cryptfs footer from encrypted drives (specifically Android)
+//  Category: Android, Filesystem
+// File Mask: *.bin
+//  ID Bytes: D0 B5 B1 C4
+//   History: 
+//   1.0  2016-10-04 TS: First implementation of the template
+//------------------------------------------------
+
+LittleEndian();
+
+typedef enum <uint32> {
+    CRYPT_TYPE_PASSWORD = 0,
+    CRYPT_TYPE_DEFAULT  = 1,
+    CRYPT_TYPE_PATTERN  = 2,
+    CRYPT_TYPE_PIN      = 3,
+    CRYPT_TYPE_MAX_TYPE = 3,
+} CRYPT_TYPE;
+
+typedef enum <ubyte> {
+    KDF_PBKDF2              = 1,
+    KDF_SCRYPT              = 2,
+    KDF_DECPRECATED_1       = 3,
+    KDF_DECPRECATED_2       = 4,
+    KDF_SCRYPT_KEYMASTER    = 5,
+} KDF_TYPE;
+
+struct {
+    uint32 magic <format=hex>;
+    uint16 major_version;
+    uint16 minor_version;
+    uint32 footer_size;
+    uint32 flags;
+    uint32 keysize;
+    CRYPT_TYPE crypt_type;
+    uint64 fs_size;
+    uint32 failed_decrypt_count;
+
+    uchar crypto_type_name[64];
+
+    uint32 spare2;
+    uchar master_key[48];
+    uchar salt[16];
+
+    uint64 persist_data_offset[2];
+    uint32 persist_data_size;
+
+    KDF_TYPE kdf_type;
+    ubyte N_factor;
+    ubyte r_factor;
+    ubyte p_factor;
+    uint64 encrypted_upto;
+    uchar hash_first_block[32];
+
+    ubyte keymaster_blob[2048];
+    uint32 keymaster_blob_size;
+
+    uchar scrypted_intermediate_key[32];
+
+    uchar sha256[32];
+} crypt;
