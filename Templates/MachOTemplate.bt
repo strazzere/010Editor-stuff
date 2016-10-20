@@ -166,7 +166,7 @@ typedef enum <uint32> {
 } CpuSubTypeARM <format=hex>;
 
 typedef enum <uint32> {
-    ARM64_ALL          = 0x0
+    ARM64_ALL          = 0x0,
     ARM64_V8           = 0x1
 } CpuSubTypeARM64 <format=hex>;
 
