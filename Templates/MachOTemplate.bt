@@ -751,6 +751,7 @@ typedef struct {
     uint32 flags <format=hex>;
     uint32 reserved1;
     uint32 reserved2;
+    uint32 reserved3;
 } Section64 <optimize=false, size=80>;
 
 typedef uint32 vm_proc;
