@@ -667,7 +667,6 @@ void SeekToDataDescription()
         ZIPDATADESCR dataDescr;
     }
     else{
-        Printf("Found a short header...\n");
         FSeek(start+skip-1-12);
         ZIPDATADESCRSH dataDescr;
     }
