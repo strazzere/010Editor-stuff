@@ -545,6 +545,12 @@ typedef struct {
 	uint ddCompressedSize;
 	uint ddUncompressedSize;
 } ZIPDATADESCR;
+// Defines the Data descriptor, short variant without signature
+typedef struct {
+	uint ddCRC <format=hex>;
+	uint ddCompressedSize;
+	uint ddUncompressedSize;
+} ZIPDATADESCRSH;
 
 // Zip64 end of central directory record
 typedef struct {
@@ -647,14 +653,24 @@ void SeekToDataDescription()
 {
     local uint skip = 0;
     local uint start = FTell();
-    while(ReadUInt(FTell()) != S_ZIPDATADESCR)
+    // Need to read until a new Local header / central dir shows up. Then go back 16 bytes and check if there is a data descriptor header or not.
+    // If there is none, use the 12 byte long header.
+    while(ReadUInt(FTell()) != S_ZIPFILERECORD &&ReadUInt(FTell()) != S_ZIPDIRENTRY)
     {
         FSeek(start+skip);
         skip += 1;
     }
     // Fix position
-    FSeek(start+skip-1);
-    ZIPDATADESCR dataDescr;
+    FSeek(start+skip-1-16);
+    if (ReadUInt(FTell()) == S_ZIPDATADESCR){
+        FSeek(start+skip-1-16);
+        ZIPDATADESCR dataDescr;
+    }
+    else{
+        FSeek(start+skip-1-12);
+        ZIPDATADESCRSH dataDescr;
+    }
+        
 }
 
 //--------------------------------------------
