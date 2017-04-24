@@ -362,7 +362,7 @@ typedef enum <Elf32_Word> {
     SHT_NOBITS          = 0x8, /* Like SHT_PROGBITS with no data */
     SHT_REL             = 0x9, /* Implicit addend relocations, Elf64_Rel */
     SHT_SHLIB           = 0xA, /* Currently unspecified semantics */
-    SHT_DYNSYM          = 0xD, /* Symbol table for a DLL */
+    SHT_DYNSYM          = 0xB, /* Symbol table for a DLL */
     SHT_INIT_ARRAY      = 0xE, /* Array of constructors */
     SHT_FINI_ARRAY      = 0xF, /* Array of deconstructors */
     SHT_PREINIT_ARRAY   = 0x10, /* Array of pre-constructors */
