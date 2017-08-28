@@ -2,8 +2,8 @@
 //--- 010 Editor v6.0beta1 Binary Template
 //
 // File:        ExtractDex.1sc
-// Author:      Tim Strazzere <diff@lookout.com> <strazz@gmail.com>
-// Revision:    1.0
+// Author:      Tim 'diff' Strazzere <strazz@gmail.com>
+// Revision:    1.1
 // Purpose:     Attempts to find all Dex files inside
 //              of the file it is run on. Then it will copy
 //              from the assumed beginning to and expected end.
@@ -15,7 +15,9 @@
 //              Hopefully people stop complaining that dex files
 //              aren't inside oat files now, yes, even system ones!
 //--------------------------------------
-
+// Revision History:
+// v1.1 - Ignore versioning bits to better catch all dex files
+//--------------------------------------
 uint GetEndOfDex(uint start)
 {
     return ReadUInt(start + 8 /* magic length */ 
@@ -23,7 +25,7 @@ uint GetEndOfDex(uint start)
                           + 20  /* sha1 */);
 }
 
-TFindResults potentialFiles = FindAll("dex\n035");
+TFindResults potentialFiles = FindAll("dex\n");
 
 Printf("Found %d potential dex files.\n", potentialFiles.count);
 

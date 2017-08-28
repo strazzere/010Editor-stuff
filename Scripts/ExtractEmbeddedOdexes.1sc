@@ -2,8 +2,8 @@
 //--- 010 Editor v5.0beta2 Script File
 //
 // File:        ExtractEmbeddedOdexes.1sc
-// Author:      Tim "diff" Strazzere - diff@lookout.com
-// Revision:    1.0
+// Author:      Tim 'diff' Strazzere - strazz@gmail.com
+// Revision:    1.1
 // Purpose:     Attempts to find all Odex files inside
 //              of the file it is run on. Then it will copy
 //              from the assumed beginning to and expected end.
@@ -11,6 +11,8 @@
 //              and unsaved tab.
 //
 //              Use case for me was core dumps, enjoy.
+//--------------------------------------
+// v1.1	- Ignore versioning bits to better catch all dex files
 //--------------------------------------
 
 uint GetEndOfOdex(uint start)
@@ -39,7 +41,7 @@ uint GetEndOfOdex(uint start)
     return start + opt_offset + opt_length;
 }
 
-TFindResults potentialFiles = FindAll("dey\n036");
+TFindResults potentialFiles = FindAll("dey\n");
 
 Printf("Found %d potential Odex files.\n", potentialFiles.count);
 
