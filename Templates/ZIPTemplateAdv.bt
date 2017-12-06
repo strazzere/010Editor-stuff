@@ -3,7 +3,7 @@
 //
 // File:     ZIPTemplateAdv.bt
 // Author:   SweetScape Software
-// Revision: 2.5
+// Revision: 2.6
 // Purpose:  Defines a template for
 //    parsing ZIP files. Handles more
 //    complex ZIP data such as ZIP64
@@ -31,6 +31,9 @@
 // 2.5 (Tim Strazzere, strazz@gmail.com diff@lookout.com)
 //   - Don't die on improperly formed records which do not link
 //     to a directory entry (Android edgecase)
+// 2.6 (Tim Strazzere, strazz@gmail.com)
+//   - Properly avoid records which don't include the frExtraField
+//     but do have non-standard padding
 //
 //-----------------------------------
 
@@ -702,7 +705,7 @@ while( !FEof() )
         }
 
         // JAR's should all have this extra field on the first entry
-        if(record.frExtraFieldLength > 0 && isJar != 1)
+        if(record.frExtraFieldLength > 0 && isJar != 1 && exists(record.frExtraField))
             if(record.frExtraField.efHeaderID == EH_CAFE)
                 isJar = 1;
         if(isJar && record.frCompressedSize == 0 && record.frUncompressedSize == 0)
