@@ -4,10 +4,14 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <strazz@gmail.com>
-// Revision: 2.5.2
+// Revision: 2.5.3
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
+//
+// Version 2.5.3
+// Fixed:
+//  - Avoid out of bounds sections, present in bangcle packed files
 //
 // Version 2.5.1 / 2.5.2
 // FIXED:
@@ -624,9 +628,13 @@ typedef struct {  //32bit
     Elf32_Xword s_addralign;         /* Address alignment boundary*/
     Elf32_Xword s_entsize;           /* Entry size, if section has table */
     
-    if(s_type != SHT_NOBITS && s_type != SHT_NULL && s_size > 0) {
-        FSeek(s_offset);
-        char s_data[s_size];
+    if(s_offset > FileSize() || s_offset + s_size > FileSize()) {
+        PrintWarning("Section table either points outside or extends outside of the file");
+    } else {
+        if(s_type != SHT_NOBITS && s_type != SHT_NULL && s_size > 0) {
+            FSeek(s_offset);
+            char s_data[s_size];
+        }
     }
     FSeek(off + file.elf_header.e_shentsize_SECTION_HEADER_ENTRY_SIZE);
 } section_table_entry32_t <read=SectionName32,optimize=false>;
