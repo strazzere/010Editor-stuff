@@ -1,0 +1,70 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+LittleEndian();
+
+typedef enum <uint64> {
+    VTC         = 0x7c3614a6bcdcf784,
+    VTC2        = 0x7c3814b6ccdcf984,
+    VTC_TESTNET = 0x7c3614a6bcdcf793,
+    BTC         = 0x2472ef181efcd37b,
+    BTC_TESTNET = 0x3f6057a15036f441,
+    BTC_REGTEST = 0x8f2c8d54b3278bc8,
+    FASTCOIN    = 0x50f713ab040dfade,
+    LTC         = 0x7208c1a53ef629b0,
+    LTC_TESTNET = 0xad9614f6466a39cf,
+    TERRACOIN   = 0x56a3f62173d2a9b5,
+    TERRA_TEST  = 0x16d2b91182dab8a4,
+} CoinPrefix;
+
+typedef enum <uint64> {
+    iVTC         = 0xa06a81c827cab983,
+    iVTC2        = 0xa06e81c82fcaff83,
+    iVTC_TESTNET = 0xa06a81c827cab972,
+    iBTC         = 0xfc70035c7a81bc6f,
+    iBTC_TESTNET = 0x5fc2be2d4f0d6bfb,
+    iBTC_REGTEST = 0x5ad2c6ecbd7d9372,
+    iFASTCOIN    = 0x9f2e390aa41ffade,
+    iLTC         = 0xe037d5b8c6923410,
+    iLTC_TESTNET = 0xcca5e24ec6408b1e,
+    iTERRACOIN   = 0xa42a265ad1b6d42b,
+    iTERRA_TEST  = 0xb41a282ca5b2d85a,
+} CoinIdentifier;
+
+typedef struct {
+    uint64 services;
+    char addr[16];
+    uint16 port;
+} addr;
+
+typedef struct {
+    CoinPrefix prefix;
+    char command[12];
+    uint payload_length;
+    char sha_tail[4];
+    if(command == "version") {
+        uint32 version;
+        uint64 services;
+        addr addr_to;
+        addr addr_from;
+        uint64 nonce;
+        ubyte sub_version_length;
+        char sub_version[sub_version_length];
+        uint32 mode;
+        char best_share_hash[1];
+    } else {
+        ubyte payload[payload_length - 6];
+    }
+} Message;
+
+Message message;
