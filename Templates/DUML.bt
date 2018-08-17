@@ -1,0 +1,163 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: 
+//   Authors: Tim "diff" Strazzere <strazz@gmail.com>
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+BigEndian();
+
+typedef struct {
+    ubyte magic;
+    ubyte lengthLSB;
+    ubyte protocolVersion : 6;
+    ubyte lengthMSB : 2;
+    // local uint temp_checksum = Checksum(CHECKSUM_ADLER32, file_start + 12, temp_expected_file_size - 12, -1, -1);
+    ubyte checksum;
+} Header;
+
+typedef enum <ubyte> {
+    CAMERA_ID                          = 0x01,
+    MOBILE_TERMINAL_APP_ID             = 0x02,
+    FLIGHT_CONTROLLER_ID               = 0x03,
+    GIMBAL_ID                          = 0x04,
+    MAINBOARD_ID                       = 0x05,
+    REMOTE_CONTROL_ID                  = 0x06,
+    WIFI_MODULE_AIR_SIDE_ID            = 0x07,
+    DM368_AIR_SIDE_ID                  = 0x08,
+    HD_MAP_AIR_SIDE_ID                 = 0x09,
+    PC_ID                              = 0x0A,
+    SMART_BATTERY_ID                   = 0x0B,
+    ESC_ID                             = 0x0C,
+    DM368_GROUND_SIDE_ID               = 0x0D,
+    HD_MAP_GROUND_SIDE_ID              = 0x0E,
+    STRING_CONVERSION_AIR_SIDE_ID      = 0x0F,
+    STRING_CONVERSION_GROUND_SIDE_ID   = 0x10,
+    VPS_ID                             = 0x11,
+    OBSTACLE_AVOIDANCE_ID              = 0x12,
+    HD_GRAPHICS_AIR_SIDE_ID            = 0x13,
+    HD_MAP_GROUND_SIDE_FPGA_ID         = 0x14,
+    SIMULATOR_ID                       = 0x15,
+    BASE_STATION_ID                    = 0x16,
+    AIRBORNE_COMPUTING_PLATFORM_ID     = 0x17,
+    REMOTE_CONTROL_BATTERY_ID          = 0x18,
+    IMU_ID                             = 0x19,
+    GPS_ID                             = 0x1A,
+    WIFI_MODULE_GROUND_SIDE_ID         = 0x1B,
+    ARGICULTURAL_MACHINE_CONVERSION_ID = 0x1C
+} Identifier;
+
+typedef struct {
+    ubyte sourceIndex : 3;
+    Identifier sourceID : 5;
+    ubyte targetIndex : 3;
+    Identifier targetID : 5;
+} Transit;
+
+typedef struct {
+    ubyte counterLSB;
+    ubyte counterMSB;
+} Counters;
+
+typedef enum <ubyte> { 
+    NO_ACK   = 0x00,
+    PUSH     = 0x20,
+    ACK      = 0x40,
+    RESPONSE = 0x60
+} CommandType;
+
+typedef enum <ubyte> {
+    UNIVERSAL               = 0x00,
+    SPECIAL                 = 0x01,
+    CAMERA                  = 0x02,
+    FLIGHT_CONTROLLER       = 0x03,
+    GIMBAL                  = 0x04,
+    MAINBOARD               = 0x05,
+    REMOTE_CONTROL          = 0x06,
+    WIFI                    = 0x07,
+    DM368                   = 0x08,
+    HD_MAP_TRANSMISSION     = 0x09,
+    VPS_OBSTICAL_AVVOIDANCE = 0x0A,
+    SIMULATOR               = 0x0B,
+    ORDER                   = 0x0C,
+    SMART_BATTERY           = 0x0D,
+    DATA_LOGGER             = 0x0E,
+    RTK                     = 0x0F,
+    AUTOMATED_TEST          = 0x10
+} CommandSet;
+
+typedef enum <ubyte> {
+    PING                    = 0x00,
+    VER_GET                 = 0x01,
+
+    UPGRADE_MODE_ENTER      = 0x07,
+    UPGRADE_DATA            = 0x08,
+    UPGRADE_TRANSFER_DATA   = 0x09,
+    UPGRADE_FINISH_DATA     = 0x0A,
+    REBOOT                  = 0x0B,
+    REPORT_STATUS           = 0x0C,
+
+    COMPATIBLE_UPGRADE_ACK  = 0x0F,
+
+    FILE_RECV_REQ           = 0x23,
+    FILE_SEND               = 0x24,
+    FILE_SEND_ERR           = 0x25,
+
+    AUTH_RESPONSE           = 0x34,
+
+    STOP_PUSH               = 0x41,
+    UPDATE_STATUS           = 0x42,
+
+    RESP_OK_WRAPPER         = 0x48,
+
+    SET_DATE                = 0x4A,
+    GET_DATE                = 0x4B,
+
+    GET_CFG_FILE            = 0x4F,
+    SET_SERIAL              = 0x50,
+    GET_SERIAL              = 0x51,
+
+    RESP_OK_WRAPPER_2       = 0x53,
+    GET_TEMPERATURE_INFO    = 0x54,
+
+    PLAY_SOUND              = 0x5A,
+
+    SET_PRODUCT_NEWEST_VER  = 0x61,
+    GET_PRODUCT_NEWEST_VER  = 0x62,
+
+    TEST_START              = 0xF4,
+    TEST_STOP               = 0xF5,
+    TEST_GET_RESULT         = 0xF6,
+    TEST_PUSH_RESULT        = 0xF7,
+    TEST_GET_LOG            = 0xf8,
+
+    DUSS_EVENT_LOG          = 0xFA,
+
+    SELF_DEFINE_CMD         = 0xFE,
+
+    QUERY_DEVICE_INFO       = 0xFF,
+} CommandID;
+
+typedef struct {
+    CommandType commandType;
+    CommandSet commandSet;
+    CommandID commandID;
+    ubyte payload[FileSize() - FTell() - 2];
+} Command;
+
+typedef struct {
+    Header header;
+    Transit transit;
+    Counters counters;
+    Command command;
+    ubyte checksumLSB;
+    ubyte checksumMSB;
+} Message;
+
+
+Message message;
