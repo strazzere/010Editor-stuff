@@ -3,22 +3,25 @@
 //
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere
-//             <diff@lookout.com>
 //             <strazz@gmail.com>
-// Revision: 1.5.6
+// Revision: 1.6
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.6 (2018-08-17):
+// - Fix issue with 0 sized string/symbol tables
+//
+// Version 1.5.6 (2016-10-25):
+//  - Fix Section64 offset type
+//
+// Version 1.5.4.1 (2016-08-10):
+//  - Fix a parsing bug for single-architecture mach-o files.
+//  - Add ARM64 CpuType
+//
 // Version 1.5.4 (2016-04-26)
 //  - Add LoadCommands of :
 //     - LC_VERSION_MIN_TVOS
 //     - LC_VERSION_MIN_WATCHOS
-//
-//
-// Version 1.5.6 (2016-10-25
-//  - Fix Section64 offset type
-// Version 1.5.4 (2016-08-10):
-//  - Fix a parsing bug for single-architecture mach-o files.
-//  - Add ARM64 CpuType
 //
 // Version 1.5.3 (2015-09-02)
 //  - WIP, adding lots of stuff :D
@@ -416,15 +419,19 @@ typedef struct {
 typedef struct (Magic magic,
                 uint32 symbol_offset, uint32 number_of_symbols,
                 uint32 string_offset, uint32 string_size ) {
-    FSeek(string_offset);
-    StringTable stringTable(string_offset, string_size);
+    if(string_size > 0) {
+        FSeek(string_offset);
+        StringTable stringTable(string_offset, string_size);
+    }
 
-    // Needs to know if this is 64bit or not
-    FSeek(symbol_offset);
-    if(magic == MACHO_64) {
-        SymbolEntry64 symbolEntry[number_of_symbols];
-    } else {
-        SymbolEntry symbolEntry[number_of_symbols];
+    if(number_of_symbols > 0) {
+        // Needs to know if this is 64bit or not
+        FSeek(symbol_offset);
+        if(magic == MACHO_64) {
+            SymbolEntry64 symbolEntry[number_of_symbols];
+        } else {
+            SymbolEntry symbolEntry[number_of_symbols];
+        }
     }
 
 } SymbolTable <optimize=false>;
