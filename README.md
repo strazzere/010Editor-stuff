@@ -13,4 +13,4 @@ me directory, or submit an issue to this repo. I will gladly take
 a look at the issue and attempt to fix it! If you could attach the
 offending file, that would be even better.
 
-Tim Strazzere - diff@lookout.com
+Tim Strazzere - diff@protonmail.com
