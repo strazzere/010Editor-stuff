@@ -1151,6 +1151,7 @@ typedef struct {
     case LOAD_DYLIB :
     case LOAD_WEAK_DYLIB :
     case REEXPORT_DYLIB :
+    case LOAD_UPWARD_DYLIB :
         LoadCommandString name;
         // TODO : Pretty print this
         uint32 timestamp;
