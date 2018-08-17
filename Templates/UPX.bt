@@ -1,0 +1,228 @@
+//--------------------------------------
+//--- 010 Editor v6.0.2 Binary Template
+//
+// File:     UPXTemplate.bt
+// Author:   Tim "diff" Strazzere <strazz@gmail.com>
+// Revision: 1.0
+// Purpose:  Defines a template for parsing UPX headers, requires ELFTemplate.bt.
+//----------------------------------------
+
+typedef enum <uint32> {
+    UPX_MAGIC_LE32  = 0x21585055, /* "UPX!" */
+    UPX_MAGIC2_LE32 = 0xD5D0D8A1
+} magics;
+
+typedef enum <uint32> {
+    M_ALL           = -1,
+    M_END           = -2,
+    M_NONE          = -3,
+    M_SKIP          = -4,
+    M_ULTRA_BRUTE   = -5,
+    M_NRV2B_LE32    = 2,
+    M_NRV2B_8       = 3,
+    M_NRV2B_LE16    = 4,
+    M_NRV2D_LE32    = 5,
+    M_NRV2D_8       = 6,
+    M_NRV2D_LE16    = 7,
+    M_NRV2E_LE32    = 8,
+    M_NRV2E_8       = 9,
+    M_NRV2E_LE16    = 10,
+    M_CL1B_LE32     = 11,
+    M_CL1B_8        = 12,
+    M_CL1B_LE16     = 13,
+    M_LZMA          = 14,
+    M_DEFLATE       = 15 /* zlib */
+} compression_method <comment="Compression method used">;
+
+typedef enum <uchar> {                                                                                                                 
+    FT_END          = -1,
+    FT_NONE         = -2,
+    FT_SKIP         = -3,
+    FT_ULTRA_BRUTE  = -4
+} filter;
+
+typedef struct {
+    uint32 sz_unc <comment="Uncompressed size">;
+    uint32 sz_cpr <comment="Compressed size">;
+    compression_method b_method <comment="Compression algorithm">;
+    filter b_ftid <comment="Filter id">;
+    uchar b_cto8 <comment="Filter parameter">;
+    uchar b_unused;
+} b_info;
+
+typedef char uint8;
+
+typedef enum <uint8> {
+    UPX_F_DOS_COM               = 0x1,
+    UPX_F_DOS_SYS               = 0x2,
+    UPX_F_DOS_EXE               = 0x3,
+    UPX_F_DJGPP2_COFF           = 0x4,
+    UPX_F_WATCOM_LE             = 0x5,
+    UPX_F_VXD_LE                = 0x6,
+    UPX_F_DOS_EXEH              = 0x7, /* OBSOLETE */
+    UPX_F_TMT_ADAM              = 0x8,
+    UPX_F_WIN32_PE              = 0x9,
+    UPX_F_LINUX_i386            = 0xA,
+    UPX_F_WIN16_NE              = 0xB,
+    UPX_F_LINUX_ELF_i386        = 0xC,
+    UPX_F_LINUX_SEP_i386        = 0xD,
+    UPX_F_LINUX_SH_i386         = 0xE,
+    UPX_F_VMLINUZ_i386          = 0xF,
+    UPX_F_BVMLINUZ_i386         = 0x10,
+    UPX_F_ELKS_8086             = 0x11,
+    UPX_F_PS1_EXE               = 0x12,
+    UPX_F_VMLINUX_i386          = 0x13,
+    UPX_F_LINUX_ELFI_i386       = 0x14,
+    UPX_F_WINCE_ARM_PE          = 0x15,
+    UPX_F_LINUX_ELF64_AMD       = 0x16,
+    UPX_F_LINUX_ELF32_ARMEL     = 0x17,
+    UPX_F_BSD_i386              = 0x18,
+    UPX_F_BSD_ELF_i386          = 0x19,
+    UPX_F_BSD_SH_i386           = 0x1A,
+
+    UPX_F_VMLINUX_AMD64         = 0x1B,
+    UPX_F_VMLINUX_ARMEL         = 0x1C,
+    UPX_F_MACH_i386             = 0x1D,
+    UPX_F_LINUX_ELF32_MIPSEL    = 0x1E,
+    UPX_F_VMLINUZ_ARMEL         = 0x1F,
+    UPX_F_MACH_ARMEL            = 0x20,
+
+    UPX_F_DYLIB_i386            = 0x21,
+    UPX_F_MACH_AMD64            = 0x22,
+    UPX_F_DYLIB_AMD64           = 0x23,
+
+    UPX_F_PLAIN_TEXT            = 0x7F,
+
+    UPX_F_ATARI_TOS             = 0x81,
+    UPX_F_SOLARIS_SPARC         = 0x82,
+    UPX_F_MACH_PPC32            = 0x83,
+    UPX_F_LINUX_ELFPPC32        = 0x84,
+    UPX_F_LINUX_ELF32_ARMEB     = 0x85,
+    UPX_F_MACH_FAT              = 0x86,
+    UPX_F_VMLINUX_ARMEB         = 0x87,
+    UPX_F_VMLINUX_PPC32         = 0x88,
+    UPX_F_LINUX_ELF32_MIPSEB    = 0x89,
+    UPX_F_DYLIB_PPC32           = 0x8A
+} loader_format;
+
+// p_lx_elf version >= 11
+// p_lx_sh version >= 11
+// p_exe version >= 10
+// pefile version == 12 || 13
+typedef enum <uint8> {
+    UPX_0           = 0x0, // size = 24
+    UPX_1           = 0x1, // size = 24
+    UPX_2           = 0x2, // size = 24
+    UPX_3           = 0x3, // size = 24
+
+    // if format == UPX_F_DOS_COM || UPX_F_DOS_SYS size = 20
+    // if format == UPX_F_DOS_EXE || UPX_F_DOS_EXEH size = 25
+    // else size = 28
+    UPX_4           = 0x4,
+    UPX_5           = 0x5,
+    UPX_6           = 0x6,
+    UPX_7           = 0x7,
+    UPX_8           = 0x8,
+    UPX_9           = 0x9,
+
+    // p_com
+    // p_exe
+    // p_lx_sh
+    // p_mach
+    // p_ps1
+    // p_sys
+    // p_tmt
+    // p_tos
+    // p_unix
+    // p_vmlinx
+    // p_vmlinz
+    // p_vxd
+    // p_wcle
+    // pefile
+    UPX_13          = 0xD,
+
+    // p_djgpp2
+    UPX_14          = 0xE,
+
+    // else format == UPX_F_DOS_COM || format == UPX_F_DOS_SYS size = 22
+    // if format == UPX_F_DOS_EXE || UPX_F_DOS_EXEH size = 27
+    // othersize size = 32
+
+    // ending size must be >= 20 or unknown header version
+
+    UPX_SPECIAL     = 0xff
+} version_type;
+
+typedef struct {
+    uint32 l_checksum <comment="Adler32 (unused)", format=hex>;
+    magics l_magic <format=hex>;
+    uint16 l_lsize;
+    version_type l_version;
+    loader_format l_format;
+} l_info <comment="Loader Info">;
+
+typedef struct {
+    uint32 p_progid;
+    uint32 p_filesize <comment="Original file size">;
+    uint32 p_blocksize;
+} p_info;
+
+Printf("Including!\n");
+#include "ELFTemplate.bt"
+Printf("Starting!\n");
+//FSeek(sizeof(file));
+FSeek(83300);
+l_info loaderinfo;
+p_info pinfo;
+
+if(FileSize() > pinfo.p_filesize) {
+    // Header likely corrupt
+}
+if(pinfo.p_blocksize > pinfo.p_filesize) {
+    // Header likely corrupt
+}
+b_info block;
+uchar compressed[block.sz_cpr] <comment="Original elf and program headers">;
+
+
+// The "pack header"
+//FSeek(FileSize() - 36);
+FSeek(FileSize() - 45);
+magics marker;
+uchar boff[5];
+
+FSeek(FileSize() - 36);
+
+typedef struct {
+    magics l_magic <format=hex>;
+    // If this is FF it signified UPX and claims it won't unpack it
+    version_type version;
+    // If boff (market + boff) + size <= 0 || boff + size > blen then we get a header corrupted 2 error
+    loader_format format <comment="Format of the packed head stub - signifies the length to expect">;
+    loader_format method;
+//    uchar method;
+    uchar level;
+
+    // According to src/packer.h these bottom four might be switched?
+
+    uint32 u_adler <comment="Uncompressed adler", format=hex>;
+    uint32 c_adler <comment="Compressed adler", format=hex>;
+
+    // Only is not dos etc;
+    uint32 u_length <comment="Uncompressed size">;
+    uint32 c_length <comment="Compressed size">;
+    uint32 u_file_size <comment="Uncompressed file size">;
+
+    filter filter_val;
+    uchar filter_cto <comment="This appears to be ignored in src/packhead.cpp">;
+    uchar n_mru <comment="'rename to filter_misc'">;
+
+    // If this is wrong, it claims header corrupted 3
+    uchar packhead_checksum <comment="Packed header checksum">;
+    /*
+     Checksum is calculated by taking packed header (less the magic value, which must be the normal magic)
+     adding each char and mod'ing by 251
+    */
+} end_header;
+
+end_header end_header_1;
