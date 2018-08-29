@@ -4,9 +4,12 @@
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere
 //             <strazz@gmail.com>
-// Revision: 1.6
+// Revision: 1.6.1
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.6.1 (2018-08-29):
+// - Add "scatterOffset" to the CSMAGIC_CODEDIRECTORY structure when needed
 //
 // Version 1.6 (2018-08-17):
 // - Fix issue with 0 sized string/symbol tables
@@ -951,11 +954,11 @@ typedef struct {
     local uint64 begin = FTell();
     BlobMagic magic;
     uint32 length;
-    uint32 version<format=hex, comment="Compatibility version">;
-    uint32 flag<format=hex, comment="Setup and mode flags">;
-    uint32 hashOffset<format=hex, comment="Offset of hash slot element at index zero">;
-    uint32 identOffset<format=hex, comment="Offset of identifier string">;
-    uint32 nSpecialSlots<comment="Number of special hash slots">;
+    uint32 version <format=hex, comment="Compatibility version">;
+    uint32 flag <format=hex, comment="Setup and mode flags">;
+    uint32 hashOffset <format=hex, comment="Offset of hash slot element at index zero">;
+    uint32 identOffset <format=hex, comment="Offset of identifier string">;
+    uint32 nSpecialSlots <comment="Number of special hash slots">;
     uint32 nCodeSlots<comment="Number of ordinary (code) hash slots">;
     uint32 codeLimit <comment="Limit to main image signature range">;
     ubyte hashSize <comment="Size of each hash in bytes">;
@@ -963,6 +966,11 @@ typedef struct {
     ubyte unused <comment="Unused">;
     ubyte pageSize <read=PageSizeReader>;
     uint32 unused <comment="Unused">;
+
+    if (version >= 0x20100) {
+        // Version 0x20100
+        uint32 scatterOffset;
+    }
 
     FSkip(identOffset - 0x2c);
     string identifier;
