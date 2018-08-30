@@ -972,7 +972,7 @@ typedef struct {
         uint32 scatterOffset;
     }
 
-    FSkip(identOffset - 0x2c);
+    FSeek(begin + identOffset);
     string identifier;
 
     FSeek(begin + hashOffset - nSpecialSlots * hashSize);
