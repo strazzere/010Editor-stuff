@@ -1093,7 +1093,7 @@ typedef struct (int offset, int size){
         FSeek(blob_begin);
         cnt_blob += 1;
 
-        magic = ReadInt();
+        magic = ReadInt(blob_begin);
         switch(magic) {
             case REQUIREMENT:
                 // Requirement shouldn't be directly described by a normal SuperBlob.
