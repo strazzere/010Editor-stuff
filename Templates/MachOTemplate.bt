@@ -4,9 +4,12 @@
 // File:     MachOTemplate.bt
 // Author:   Tim "diff" Strazzere
 //             <strazz@gmail.com>
-// Revision: 1.6.1
+// Revision: 1.6.2
 // Purpose:  Quick template for parsing Macho-o binaries.
 //--------------------------------------
+//
+// Version 1.6.2 (2018-09-12):
+// - Add CSSlotType type to the blobIndex type
 //
 // Version 1.6.1 (2018-08-29):
 // - Add "scatterOffset" to the CSMAGIC_CODEDIRECTORY structure when needed
@@ -877,9 +880,19 @@ typedef enum <uint> {
     ENTITLEMENT         = 0xfade7171,
 } BlobMagic <format=hex, comment="blob magic">;
 
+typedef enum <uint32> {
+	CSSLOT_CODEDIRECTORY = 0x0, // slot index for CodeDirectory
+	CSSLOT_INFOSLOT      = 0x1,
+	CSSLOT_REQUIREMENTS  = 0x2,
+	CSSLOT_RESOURCEDIR   = 0x3,
+	CSSLOT_APPLICATION   = 0x4,
+	CSSLOT_ENTITLEMENTS  = 0x5,
+	CSSLOT_SIGNATURESLOT = 0x10000, // CMS Signature
+} CSSlotType <format=hex, comment="Type of Blob this index points to">;
+
 typedef struct (uint begin){
     local uint begin = begin;
-    uint32 type <comment="Type of entry">;
+    CSSlotType type;
     uint32 offset <format=hex, comment="Offset of entry">;
 } BlobIndex <optimize=false, read=BlobIndexReader, comment="Blob index">;
 
