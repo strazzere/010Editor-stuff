@@ -525,6 +525,9 @@ typedef struct {
         case ARM :
             CpuSubTypeARM cpu_sub_type <comment="Machine specifier", format=hex>;
             break;
+        case ARM64 :
+            CpuSubTypeARM64 cpu_sub_type <comment="Machine specifier", format=hex>;
+            break;
         default :
         uint32 cpu_sub_type <comment="Machine specifier", format=hex>;
     }
