@@ -317,8 +317,48 @@ typedef struct {
 } ARMThreadState <optimize=true, size=68>;
 
 typedef enum {
-    ARM_THREAD_STATE    = 0x1
+    ARM_THREAD_STATE    = 0x1,
+    ARM_THREAD_STATE64  = 0x6
 } ARMThreadFlavor <format=hex>;
+
+typedef struct {
+    uint64 r0 <format=hex>;
+    uint64 r1 <format=hex>;
+    uint64 r2 <format=hex>;
+    uint64 r3 <format=hex>;
+    uint64 r4 <format=hex>;
+    uint64 r5 <format=hex>;
+    uint64 r6 <format=hex>;
+    uint64 r7 <format=hex>;
+    uint64 r8 <format=hex>;
+    uint64 r9 <format=hex>;
+    uint64 r10 <format=hex>;
+    uint64 r11 <format=hex>;
+    uint64 r12 <format=hex>;
+    uint64 r13 <format=hex>;
+    uint64 r14 <format=hex>;
+    uint64 r15 <format=hex>;
+    uint64 r16 <format=hex>;
+    uint64 r17 <format=hex>;
+    uint64 r18 <format=hex>;
+    uint64 r19 <format=hex>;
+    uint64 r20 <format=hex>;
+    uint64 r21 <format=hex>;
+    uint64 r22 <format=hex>;
+    uint64 r23 <format=hex>;
+    uint64 r24 <format=hex>;
+    uint64 r25 <format=hex>;
+    uint64 r26 <format=hex>;
+    uint64 r27 <format=hex>;
+    uint64 r28 <format=hex>;
+    uint64 r29 <format=hex>;
+    uint64 fp <format=hex>;
+    uint64 lr <format=hex>;
+    uint64 pc <format=hex>;
+    uint32 cpsr <format=hex>;
+    // uint32 pad <format=hex>;
+} ARMThreadState64;
+
 
 typedef enum {
     NOT_ENCRYPTED       = 0x0,
@@ -1304,9 +1344,17 @@ typedef struct {
                 }
                 break;
             case ARM :
+            case ARM64 :
                 ARMThreadFlavor flavor;
                 uint32 count;
-                ARMThreadState threadState;
+                switch(flavor){
+                    case ARM_THREAD_STATE:
+                        ARMThreadState threadState;
+                        break;
+                    case ARM_THREAD_STATE64:
+                        ARMThreadState64 threadState;
+                        break;
+                }
                 break;
         }
         break;
