@@ -356,7 +356,7 @@ typedef struct {
     uint64 lr <format=hex>;
     uint64 pc <format=hex>;
     uint32 cpsr <format=hex>;
-    // uint32 pad <format=hex>;
+    uint32 pad <hidden=true>;
 } ARMThreadState64;
 
 
