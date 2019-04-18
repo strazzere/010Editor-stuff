@@ -1026,6 +1026,13 @@ typedef struct {
     if (version >= 0x20100) {
         // Version 0x20100
         uint32 scatterOffset;
+// https://github.com/nneonneo/osx-10.9-opensource/blob/master/xnu-2422.1.72/bsd/sys/codesign.h
+//typedef struct __SC_Scatter {
+//	uint32_t count;			// number of pages; zero for sentinel (only)
+//	uint32_t base;			// first page number
+//	uint64_t targetOffset;		// offset in target
+//	uint64_t spare;			// reserved
+//} SC_Scatter;
     }
 
     FSeek(begin + identOffset);
@@ -1045,14 +1052,70 @@ string CodeDirectoryReader(CodeDirectory &codeDirectory) {
     return s;
 }
 
+typedef enum <uint32> {
+    opFalse              = 0,
+    opTrue               = 1,
+    opIdent              = 2,
+    opAppleAnchor        = 3,
+    opAnchorHash         = 4,
+    opInfoKeyValue       = 5,
+    opAnd                = 6,
+    opOr                 = 7,
+    opCDHash             = 8,
+    opNot                = 9,
+    opInfoKeyField       = 10,
+    opCertField          = 11,
+    opTrustedCert        = 12,
+    opTrustedCerts       = 13,
+    opCertGeneric        = 14,
+    opAppleGenericAnchor = 15,
+    opEntitlementField   = 16,
+} ExprOpCode;
+
+typedef struct {
+    uint32 length;
+    ubyte data[length];
+    local int padLength = length % 4;
+    ubyte padding[length & 3];
+} ExprData;
+
+typedef struct (int length) {
+    while(length > 0) {
+        ExprOpCode opcode;
+        switch(opcode) {
+        case opAnd:
+            ExprOpCode andOpExpr1(4);
+            ExprOpCode andOpExpr2(4);
+            length -= 8;
+        case opIdent:
+            local uint64 begin = FTell();
+            ExprData data;
+            local uint64 end = FTell();
+            length -= (end - begin);
+        }
+        length -= 4;
+    }
+} Expr;
+
+typedef enum <uint32> {
+	kSecHostRequirementType          =	1,	/* what hosts may run us */
+	kSecGuestRequirementType         =	2,	/* what guests we may run */
+	kSecDesignatedRequirementType    =	3,	/* designated requirement */
+	kSecLibraryRequirementType       =	4,	/* what libraries we may link against */
+	kSecPluginRequirementType        =	5,	/* what plug-ins we may load */
+//	kSecInvalidRequirementType,				/* invalid type of Requirement (must be last) */
+//	kSecRequirementTypeCount = kSecInvalidRequirementType /* number of valid requirement types */
+} RequirementType;
+
 typedef struct (int type){
     local int type = type;
     local int begin = FTell();
     BlobMagic magic;
     uint32 length;
-    uint32 kind <read=RequirementKindReader>;
+    RequirementType kind;// <read=RequirementKindReader>;
     local int now = FTell();
     if (kind == 1)
+        //Expr expr(length-(now-begin));
         char prefix_expr[length-(now-begin)] <comment="run \"codesign --display -r- <file>\"">;
     else
         FSkip(length-(now-begin));
