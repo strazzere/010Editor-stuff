@@ -764,7 +764,7 @@ while( !FEof() )
 	}
 	else
 	{
-		Warning( "Unknown ZIP tag encountered at offset %d. Template stopped.", FTell() );
+		Warning( "Unknown ZIP tag encountered at offset %d of %x. Template stopped.", FTell(), tag );
 		return -1;
 	}
 }
