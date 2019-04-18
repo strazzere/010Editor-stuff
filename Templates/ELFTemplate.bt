@@ -630,7 +630,9 @@ typedef struct {  //64bit
     Elf64_Xword s_addralign;         /* Address alignment boundary */
     Elf64_Xword s_entsize;           /* Entry size, if section has table */
 
-    if(s_type != SHT_NOBITS && s_type != SHT_NULL && s_size > 0) {
+    if(s_type != SHT_NOBITS && s_type != SHT_NULL 
+        && s_size > 0 && s_offset < FileSize()
+        && s_size <= (FileSize() - s_offset)) {
         FSeek(s_offset);
         char data[s_size];
     }
@@ -654,7 +656,9 @@ typedef struct {  //32bit
     if(s_offset > FileSize() || s_offset + s_size > FileSize()) {
         PrintWarning("Section table either points outside or extends outside of the file");
     } else {
-        if(s_type != SHT_NOBITS && s_type != SHT_NULL && s_size > 0) {
+        if(s_type != SHT_NOBITS && s_type != SHT_NULL 
+            && s_size > 0 && s_offset < FileSize()
+            && s_size <= (FileSize() - s_offset)) {
             FSeek(s_offset);
             char s_data[s_size];
         }
