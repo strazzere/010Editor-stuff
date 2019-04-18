@@ -4,11 +4,16 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <strazz@gmail.com>
-// Revision: 2.5.3
+// Revision: 2.5.6
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
 //
+// Version 2.5.6
+// Fixed:
+//  - Fix SHT_DYNSYM section type
+//  - Fix Section Flags (thanks g0g0den4!)
+//  - Sync with 010 Template Repository version
 // Version 2.5.3
 // Fixed:
 //  - Avoid out of bounds sections, present in bangcle packed files
@@ -58,7 +63,7 @@ local string temp_warning;
 
 // A hack to get warning messages to both "Warn" (show in status) and output to the "output" window
 void PrintWarning(string message) {
-    Warning(temp_warning);
+//    Warning(temp_warning);
 
     // Ensure new-line, "Warning" statuses should not have them
     SPrintf(temp_warning, "%s\n", message);
@@ -549,24 +554,42 @@ string ProgramInfo32( program_table_entry32_t &ent) {
 
 typedef enum <Elf32_Xword> {
     SF32_None               = 0x0,
-    SF32_Exec               = 0x1,
+    SF32_Write              = 0x1,
     SF32_Alloc              = 0x2,
-    SF32_Alloc_Exec         = 0x3,
-    SF32_Write              = 0x4,
+    SF32_Alloc_Write        = 0x3,
+    SF32_Exec               = 0x4,
     SF32_Write_Exec         = 0x5,
-    SF32_Write_Alloc        = 0x6,
-    SF32_Write_Alloc_Exec   = 0x7
+    SF32_Alloc_Exec         = 0x6,
+    SF32_Write_Alloc_Exec   = 0x7,
+    SF32_Merge              = 0x10,
+    SF32_Strings            = 0x20,
+    SF32_Info_Link          = 0x40,
+    SF32_Link_Order         = 0x80,
+    SF32_OS_Nonconforming   = 0x100,
+    SF32_Group              = 0x200,
+    SF32_TLS                = 0x400,
+    SF32_MaskOS             = 0x0ff00000,
+    SF32_MaskProc           = 0xf0000000,
 } s_flags32_e;
 
 typedef enum <Elf64_Xword> {
     SF64_None               = 0x0,
-    SF64_Exec               = 0x1,
+    SF64_Write              = 0x1,
     SF64_Alloc              = 0x2,
-    SF64_Alloc_Exec         = 0x3,
-    SF64_Write              = 0x4,
+    SF64_Alloc_Write        = 0x3,
+    SF64_Exec               = 0x4,
     SF64_Write_Exec         = 0x5,
-    SF64_Write_Alloc        = 0x6,
-    SF64_Write_Alloc_Exec   = 0x7
+    SF64_Alloc_Exec         = 0x6,
+    SF64_Write_Alloc_Exec   = 0x7,
+    SF64_Merge              = 0x10,
+    SF64_Strings            = 0x20,
+    SF64_Info_Link          = 0x40,
+    SF64_Link_Order         = 0x80,
+    SF64_OS_Nonconforming   = 0x100,
+    SF64_Group              = 0x200,
+    SF64_TLS                = 0x400,
+    SF64_MaskOS             = 0x0ff00000,
+    SF64_MaskProc           = 0xf0000000,
 } s_flags64_e;
 
 // Pointer to where the next name is located
@@ -950,11 +973,11 @@ struct {
 
 // It's not really useful to see just the last warning, so inform us how many warnings we should see in output
 if(warnings > 1) {
-    Warning("%d warnings have occured and logged to the output box!", warnings);
+//    Warning("%d warnings have occured and logged to the output box!", warnings);
 }
 
 // This will make the template show "Template executed successfully."
 if(warnings != 0) {
     SPrintf(temp_warning, "%d warnings found, template may not have run successfully!", warnings);
-    return temp_warning;
+//    return;
 }
