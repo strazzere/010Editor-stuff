@@ -637,7 +637,7 @@ typedef struct {  //64bit
         char data[s_size];
     }
     FSeek(off + file.elf_header.e_shentsize_SECTION_HEADER_ENTRY_SIZE);
-} section_table_entry64_t <optimize=false>;
+} section_table_entry64_t <read=SectionName64,optimize=false>;
 
 typedef struct {  //32bit 
     local quad off = FTell();
