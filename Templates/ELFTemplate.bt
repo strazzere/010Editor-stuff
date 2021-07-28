@@ -63,7 +63,7 @@ local string temp_warning;
 
 // A hack to get warning messages to both "Warn" (show in status) and output to the "output" window
 void PrintWarning(string message) {
-//    Warning(temp_warning);
+    Warning(temp_warning);
 
     // Ensure new-line, "Warning" statuses should not have them
     SPrintf(temp_warning, "%s\n", message);
@@ -977,11 +977,11 @@ struct {
 
 // It's not really useful to see just the last warning, so inform us how many warnings we should see in output
 if(warnings > 1) {
-//    Warning("%d warnings have occured and logged to the output box!", warnings);
+    Warning("%d warnings have occured and logged to the output box!", warnings);
 }
 
 // This will make the template show "Template executed successfully."
 if(warnings != 0) {
     SPrintf(temp_warning, "%d warnings found, template may not have run successfully!", warnings);
-//    return;
+    return temp_warning;
 }
