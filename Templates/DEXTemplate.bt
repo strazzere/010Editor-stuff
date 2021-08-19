@@ -49,7 +49,7 @@
 //    padded, now they are.
 //  - File size attribute is not properly parsed and checked for
 //    odex files.
-//  - Fixed the Alder32 and SHA1 checks when file is odex, significant
+//  - Fixed the Adler32 and SHA1 checks when file is odex, significant
 //    speed increases in doing so.
 //  - SHA1 should just not be run against Odex since it should always
 //    fail.
@@ -70,7 +70,7 @@
 //  - Added a warning and (red) color change to the following header fields;
 //      - file size vs expected file size
 //      - SHA1 from header vs actual SHA1
-//      - Alder32 checksum from header vs actual checksum
+//      - Adler32 checksum from header vs actual checksum
 //
 // Version 1.4 (2013-8-12)
 //
@@ -567,10 +567,10 @@ typedef struct {
     local uint temp_checksum = Checksum(CHECKSUM_ADLER32, file_start + 12, temp_expected_file_size - 12, -1, -1);
     if(temp_checksum != ReadUInt(FTell())) {
         SetBackColor(cLtRed);
-        SPrintf(temp_warning, "Alder32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+        SPrintf(temp_warning, "Adler32 checksum did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
         PrintWarning(temp_warning);
     }
-    uint checksum <format=hex, comment="Alder32 checksum of rest of file">;
+    uint checksum <format=hex, comment="Adler32 checksum of rest of file">;
     // Ensure we reset color to not bleed
     SetBackColor(cLtGreen);
 
@@ -699,10 +699,10 @@ typedef struct {
     local uint temp_checksum = Checksum(CHECKSUM_ADLER32, deps_offset, FileSize() - deps_offset, -1, -1);
     if(temp_checksum != ReadUInt(FTell())) {
         SetBackColor(cLtRed);
-        SPrintf(temp_warning, "Alder32 checksum for optimized dependancies did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
+        SPrintf(temp_warning, "Adler32 checksum for optimized dependancies did not match, expected %08X but got %08X", ReadUInt(FTell()), temp_checksum);
         PrintWarning(temp_warning);
     }
-    uint checksum <comment="Alder32 checksum of dependency table and optimization table">;    
+    uint checksum <comment="Adler32 checksum of dependency table and optimization table">;    
 } dexopt_header_item <size=40>;
 
 string DexOptFlagsRead(DEX_OPT_FLAGS f) {
