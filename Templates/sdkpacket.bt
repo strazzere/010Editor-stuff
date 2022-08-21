@@ -1,0 +1,29 @@
+//------------------------------------------------
+//--- 010 Editor v10.0 Binary Template
+//
+//      File: sdkpacket.bt
+//   Authors: Tim Strazzere
+//   Version: 1.0.0
+//   Purpose: Parsing DJI SDK packets
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+
+typedef enum <unsigned short> {
+    IPC_MAGIC = 0xbb55,
+    SDK_MAGIC = 0xaa55,
+} packet_magic;
+
+typedef struct {
+   packet_magic magic <format=hex>;
+   unsigned char type;        <comment="packet type">;
+   unsigned char source;      <comment="sender">;
+   unsigned int  length;      <comment="length of payload">;
+   unsigned int  destination; <comment="intended recipient">;
+   unsigned char data[length] <comment="payload">;
+} sdk_packet;
+
+sdk_packet packet;
