@@ -19,10 +19,10 @@ typedef enum <unsigned short> {
 
 typedef struct {
    packet_magic magic <format=hex>;
-   unsigned char type;        <comment="packet type">;
-   unsigned char source;      <comment="sender">;
-   unsigned int  length;      <comment="length of payload">;
-   unsigned int  destination; <comment="intended recipient">;
+   unsigned char type         <comment="packet type">;
+   unsigned char source       <comment="sender">;
+   unsigned int  length       <comment="length of payload">;
+   unsigned int  destination  <comment="intended recipient">;
    unsigned char data[length] <comment="payload">;
 } sdk_packet;
 
