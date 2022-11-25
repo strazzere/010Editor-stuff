@@ -4,16 +4,21 @@
 // File:     ELFTemplate.bt
 // Author:   010Editor (Unknown?)
 //           Tim "diff" Strazzere <strazz@gmail.com>
-// Revision: 2.5.6
+// Revision: 2.6
 // Purpose:  Defines a template for
 //    parsing ELF 32-bit and 64-bit files.
 //----------------------------------------
+//
+// Version 2.6
+// Added:
+//  - Parsing of Dynamic sections
 //
 // Version 2.5.6
 // Fixed:
 //  - Fix SHT_DYNSYM section type
 //  - Fix Section Flags (thanks g0g0den4!)
 //  - Sync with 010 Template Repository version
+//
 // Version 2.5.3
 // Fixed:
 //  - Avoid out of bounds sections, present in bangcle packed files
@@ -460,13 +465,154 @@ typedef struct {  //32bit
     if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() &&
         p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
         FSeek(p_offset_FROM_FILE_BEGIN);
-        char        p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+
+        switch(p_type) {
+            case PT_DYNAMIC:
+                Elf32_Dyn_t tags[p_filesz_SEGMENT_FILE_LENGTH / sizeof(Elf32_Dyn_t)];
+                break;
+            default:
+                char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+        }
     } else {
         PrintWarning("Segment data appears to either overlap with header, exist after the end of the file or overlap with the end of the file!");
     }
 
     FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
 } program_table_entry32_t <read=ProgramInfo32,optimize=false>;
+
+typedef enum <Elf32_Word> {
+    DT_NULL             = 0x0, /* Inactive section header */
+    DT_NEEDED           = 0x1, /* Information defined by the program */
+    DT_PLTRELSZ         = 0x2, /* Symbol table - not DLL */
+    DT_PLTGOT           = 0x3, /* String table */
+    DT_HASH             = 0x4, /* Explicit addend relocations, Elf64_Rela */
+    DT_STRTAB           = 0x5, /* Symbol hash table */
+    DT_SYMTAB           = 0x6, /* Information for dynamic linking */
+    DT_RELA             = 0x7, /* A Note section */
+    DT_RELASZ           = 0x8, /* Like SHT_PROGBITS with no data */
+    DT_RELAENT          = 0x9, /* Implicit addend relocations, Elf64_Rel */
+    DT_STRSZ            = 0xA, /* Currently unspecified semantics */
+    DT_SYMENT           = 0xB, /* Symbol table for a DLL */
+    DT_INIT             = 0xC, /* Array of constructors */
+    DT_FINI             = 0xD, /* Array of deconstructors */
+    DT_SONAME           = 0xE, /* Array of pre-constructors */
+    DT_RPATH            = 0xF, /* Section group */
+    DT_SYMBOLIC         = 0x10, /* Extended section indeces */
+    DT_REL              = 0x11, /* Number of defined types */
+    DT_RELSZ            = 0x12,
+    DT_RELENT           = 0x13,
+    DT_PLTREL           = 0x14,
+    DT_DEBUG            = 0x15,
+    DT_TEXTREL          = 0x16,
+    DT_JMPREL           = 0x17,
+    DT_BIND_NOW         = 0x18,
+    DT_INIT_ARRAY       = 0x19,
+    DT_FINI_ARRAY       = 0x1A,
+    DT_INIT_ARRAYSZ     = 0x1B,
+    DT_FINI_ARRAYSZ     = 0x1C,
+
+    DT_LOOS            = 0x60000000, /* Lowest OS-specific section type */
+    DT_HIOS            = 0x6fffffff, /* Highest OS-specific section type */
+    DT_LOPROC          = 0x70000000, /* Start of processor-specific section type */
+    DT_HIPROC          = 0x7fffffff, /* End of processor-specific section type */
+} d_type_e;
+
+typedef struct {
+    d_type_e type;
+} d_type32_e;
+typedef struct {
+    d_type_e type;
+    uint32 _filler;
+} d_type64_e;
+
+typedef struct {
+   d_type32_e      d_tag;
+    union dyn_union32 {
+       Elf32_Word      d_val;
+       Elf32_Addr      d_ptr;
+    } d_union32;
+} Elf32_Dyn_t;
+
+typedef struct {
+   d_type64_e      d_tag;
+    union dyn_union64 {
+       Elf64_Word      d_val;
+       Elf64_Addr      d_ptr;
+    } d_union64;
+} Elf64_Dyn_t <read=DynamicType,optimize=false>;
+
+string DynamicType(Elf64_Dyn_t &type) {
+    switch(type.d_tag.type) {
+        case DT_NULL:
+            return "NULL - end of DYNAMIC array";
+        case DT_NEEDED:
+            return "Needed shared object (string table offset)";
+        case DT_PLTRELSZ:
+            return "Size of procedure linkage table";
+        case DT_PLTGOT:
+            return "Procedure linkage table and/or global offset table address";
+        case DT_HASH:
+            return "Hash table address";
+        case DT_STRTAB:
+            return "String table address";
+        case DT_SYMTAB:
+            return "Symbol table address";
+        case DT_RELA:
+            return "Relocation (RELA) table address";
+        case DT_RELASZ:
+            return "Relocation (RELA) table total size (bytes)";
+        case DT_RELAENT:
+            return "Relocation (RELA) table size (bytes)";
+        case DT_STRSZ:
+            return "String table size (bytes)";
+        case DT_SYMENT:
+            return "Symbol table size (bytes)";
+        case DT_INIT:
+            return "Initialization function address";
+        case DT_FINI:
+            return "Termination function address";
+        case DT_SONAME:
+            return "Shared Object Name (string table offset)";
+        case DT_RPATH:
+            return "Library search path (string table offset)";
+        case DT_SYMBOLIC:
+            return "Symbolic linker starts with shared object vs executible";
+        case DT_REL:
+            return "Relocation (REL) table address with implicit addends";
+        case DT_RELSZ:
+            return "Relocation (REL) table total size (bytes)";
+        case DT_RELENT:
+            return "Relocation (REL) table size (bytes)";
+        case DT_PLTREL:
+            return "Type of relocation entry for procedure linkage table (DT_REL or DT_RELA)";
+        case DT_DEBUG:
+            return "Debugging information (Non-ABI conforming)";
+        case DT_TEXTREL:
+            return "One or more relocation entries may request modifications to a non-writable segment";
+        case DT_JMPREL:
+            return "DT_PLTREL address";
+        case DT_BIND_NOW:
+            return "Dynamic linker should process all relocations before executing code";
+        case DT_INIT_ARRAY:
+            return "Address to an array of pointers for initialization functions";
+        case DT_FINI_ARRAY:
+            return "Address to an array of pointers for termination functions";
+        case DT_INIT_ARRAYSZ:
+            return "Size of initialization functions array";
+        case DT_FINI_ARRAYSZ:
+            return "Size of termination functions array";
+        case DT_LOOS:
+            return "Lowest bit for operating system-specific semantics";
+        case DT_HIOS:
+            return "Highest bit for operating system-specific semantics";
+        case DT_LOPROC:
+            return "Lowest bit for operating processor-specific semantics";
+        case DT_HIPROC:
+            return "Lowest bit for operating processor-specific semantics";
+        default:
+            return "Unknown Dynamic Tag";
+    }
+}
 
 typedef struct {  //64bit 
     local quad off = FTell();
@@ -483,7 +629,13 @@ typedef struct {  //64bit
     if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < (uint64) FileSize() &&
         p_offset_FROM_FILE_BEGIN > 0 && p_offset_FROM_FILE_BEGIN + p_filesz_SEGMENT_FILE_LENGTH < (uint64) FileSize()) {
         FSeek(p_offset_FROM_FILE_BEGIN);
-        char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+        switch(p_type) {
+            case PT_DYNAMIC:
+                Elf64_Dyn_t tags[p_filesz_SEGMENT_FILE_LENGTH / sizeof(Elf64_Dyn_t)];
+                break;
+            default:
+                char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+        }
     }
 
     FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
