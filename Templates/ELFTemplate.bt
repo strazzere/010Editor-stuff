@@ -432,54 +432,6 @@ string ReservedSectionName(s_name32_e id) {
     return buf;
 }
 
-// Program Table 32/64 bit
-typedef struct {  //32bit 
-    local quad off = FTell();
-
-    p_type32_e p_type <comment="Segment type">;
-
-    if(ReadUInt(FTell()) > FileSize()) {
-        PrintWarning("Program section offset starts after the end of the file!");
-        SetBackColor(cLtRed);
-    }
-    Elf32_Off p_offset_FROM_FILE_BEGIN <format=hex, comment="Segment file offset">;
-    // Ensure we reset color to not bleed
-    SetBackColor(cWhite);
-
-    Elf32_Addr p_vaddr_VIRTUAL_ADDRESS <comment="Segment virtual address">;
-    Elf32_Addr p_paddr_PHYSICAL_ADDRESS <comment="Segment physical address">;
-
-    if(ReadUInt(FTell()) + p_offset_FROM_FILE_BEGIN > FileSize()) {
-        PrintWarning("Program section data seems to be larger than file size");
-        SetBackColor(cLtRed);
-    }
-    Elf32_Word p_filesz_SEGMENT_FILE_LENGTH <comment="Segment size in file">;
-    // Ensure we reset color to not bleed
-    SetBackColor(cWhite);
-
-    Elf32_Word p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in memory">;
-    p_flags32_e p_flags <comment="Segment flags">;
-    Elf32_Word p_align <comment="Segment alignment">;
-
-    // Ensure we're not trying to map ourside of the file (prevent error)
-    if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() &&
-        p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
-        FSeek(p_offset_FROM_FILE_BEGIN);
-
-        switch(p_type) {
-            case PT_DYNAMIC:
-                Elf32_Dyn_t tags[p_filesz_SEGMENT_FILE_LENGTH / sizeof(Elf32_Dyn_t)];
-                break;
-            default:
-                char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
-        }
-    } else {
-        PrintWarning("Segment data appears to either overlap with header, exist after the end of the file or overlap with the end of the file!");
-    }
-
-    FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
-} program_table_entry32_t <read=ProgramInfo32,optimize=false>;
-
 typedef enum <Elf32_Word> {
     DT_NULL             = 0x0, /* Inactive section header */
     DT_NEEDED           = 0x1, /* Information defined by the program */
@@ -613,6 +565,53 @@ string DynamicType(Elf64_Dyn_t &type) {
             return "Unknown Dynamic Tag";
     }
 }
+
+// Program Table 32/64 bit
+typedef struct {  //32bit 
+    local quad off = FTell();
+
+    p_type32_e p_type <comment="Segment type">;
+
+    if(ReadUInt(FTell()) > FileSize()) {
+        PrintWarning("Program section offset starts after the end of the file!");
+        SetBackColor(cLtRed);
+    }
+    Elf32_Off p_offset_FROM_FILE_BEGIN <format=hex, comment="Segment file offset">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cWhite);
+
+    Elf32_Addr p_vaddr_VIRTUAL_ADDRESS <comment="Segment virtual address">;
+    Elf32_Addr p_paddr_PHYSICAL_ADDRESS <comment="Segment physical address">;
+
+    if(ReadUInt(FTell()) + p_offset_FROM_FILE_BEGIN > FileSize()) {
+        PrintWarning("Program section data seems to be larger than file size");
+        SetBackColor(cLtRed);
+    }
+    Elf32_Word p_filesz_SEGMENT_FILE_LENGTH <comment="Segment size in file">;
+    // Ensure we reset color to not bleed
+    SetBackColor(cWhite);
+
+    Elf32_Word p_memsz_SEGMENT_RAM_LENGTH <comment="Segment size in memory">;
+    p_flags32_e p_flags <comment="Segment flags">;
+    Elf32_Word p_align <comment="Segment alignment">;
+
+    // Ensure we're not trying to map ourside of the file (prevent error)
+    if(p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH < FileSize() &&
+        p_filesz_SEGMENT_FILE_LENGTH > 0 && p_filesz_SEGMENT_FILE_LENGTH + p_offset_FROM_FILE_BEGIN < FileSize()) {
+        FSeek(p_offset_FROM_FILE_BEGIN);
+        switch(p_type) {
+            case PT_DYNAMIC:
+                Elf32_Dyn_t tags[p_filesz_SEGMENT_FILE_LENGTH / sizeof(Elf32_Dyn_t)];
+                break;
+            default:
+                char p_data[p_filesz_SEGMENT_FILE_LENGTH] <comment="Segment data">;
+        }
+    } else {
+        PrintWarning("Segment data appears to either overlap with header, exist after the end of the file or overlap with the end of the file!");
+    }
+
+    FSeek(off + file.elf_header.e_phentsize_PROGRAM_HEADER_ENTRY_SIZE_IN_FILE);
+} program_table_entry32_t <read=ProgramInfo32,optimize=false>;
 
 typedef struct {  //64bit 
     local quad off = FTell();
